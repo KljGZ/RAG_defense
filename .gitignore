@@ -1,0 +1,34 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+dist/
+build/
+*.egg-info/
+/models/
+
+# Third-party repositories are independently pinned in manifest.lock.yaml.
+third_party/*/
+!third_party/manifest.lock.yaml
+
+# Runtime artifacts can be large or contain generated attack samples.
+artifacts/attacks/*
+artifacts/events/*
+artifacts/indexes/*
+artifacts/joint_gcg/*
+artifacts/role_maps/*
+artifacts/logs/*
+artifacts/preflight/*
+artifacts/provenance/*
+artifacts/smoke/*
+artifacts/statistics/*
+artifacts/run_state.json
+artifacts/run_state*.json
+!artifacts/**/.gitkeep
+!artifacts/reports/*.md
+!artifacts/audit/*.md
+!artifacts/audit/*.json

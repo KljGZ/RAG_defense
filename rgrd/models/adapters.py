@@ -1,0 +1,437 @@
+from __future__ import annotations
+
+import random
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Iterable, Sequence
+
+import numpy as np
+
+from rgrd.generation import parse_final_answer, teacher_forced_mean_logp
+from rgrd.schema import CharRange
+
+
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
+
+def _torch() -> Any:
+    try:
+        import torch
+    except ImportError as exc:  # pragma: no cover - model environment only
+        raise RuntimeError("model adapters require torch") from exc
+    return torch
+
+
+def set_deterministic(seed: int) -> None:
+    torch = _torch()
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.use_deterministic_algorithms(True, warn_only=True)
+    torch.backends.cudnn.benchmark = False
+
+
+def _mean_pool(last_hidden_state: Any, attention_mask: Any) -> Any:
+    mask = attention_mask.unsqueeze(-1).to(last_hidden_state.dtype)
+    denominator = mask.sum(dim=1).clamp(min=1.0)
+    return (last_hidden_state * mask).sum(dim=1) / denominator
+
+
+def _neutral_token_id(tokenizer: Any) -> int:
+    for value in (tokenizer.pad_token_id, tokenizer.unk_token_id, tokenizer.eos_token_id):
+        if value is not None:
+            return int(value)
+    raise ValueError("tokenizer has no neutral pad/unk/eos token")
+
+
+def _overlap_indices(
+    offsets: Sequence[Sequence[int]],
+    span: CharRange,
+    *,
+    eligible: Iterable[int] | None = None,
+) -> list[int]:
+    allowed = None if eligible is None else set(eligible)
+    indices: list[int] = []
+    for index, pair in enumerate(offsets):
+        start, end = int(pair[0]), int(pair[1])
+        if end <= start or (allowed is not None and index not in allowed):
+            continue
+        if start < span.end and end > span.start:
+            indices.append(index)
+    if not indices:
+        raise ValueError(f"span {span} did not map to any model tokens")
+    return indices
+
+
+def _replacement_ids(tokenizer: Any, donor_text: str, length: int) -> list[int]:
+    encoded = tokenizer(donor_text, add_special_tokens=False, truncation=False)
+    values = encoded["input_ids"]
+    if values and isinstance(values[0], list):
+        values = values[0]
+    if len(values) < length:
+        raise ValueError(f"clean donor has {len(values)} tokens but intervention requires {length}")
+    return [int(value) for value in values[:length]]
+
+
+class DenseRetriever:
+    """Contriever-compatible dense encoder with intervention-aware mean pooling."""
+
+    def __init__(
+        self,
+        model_path: Path,
+        *,
+        device: str = "cuda:0",
+        max_length: int = 512,
+        normalize: bool = False,
+    ) -> None:
+        torch = _torch()
+        try:
+            from transformers import AutoModel, AutoTokenizer
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError("transformers is required") from exc
+        self.model_path = Path(model_path)
+        self.device = torch.device(device)
+        self.max_length = max_length
+        self.normalize = normalize
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_path, local_files_only=True, use_fast=True
+        )
+        self.model = AutoModel.from_pretrained(self.model_path, local_files_only=True)
+        self.model.eval().to(self.device)
+        self.dimension = int(self.model.config.hidden_size)
+
+    def _forward(self, encoded: Any) -> Any:
+        torch = _torch()
+        encoded = {
+            key: value.to(self.device) for key, value in encoded.items() if key != "offset_mapping"
+        }
+        position_ids = torch.arange(encoded["input_ids"].shape[-1], device=self.device).unsqueeze(0)
+        if encoded["input_ids"].shape[0] > 1:
+            position_ids = position_ids.expand(encoded["input_ids"].shape[0], -1)
+        with torch.inference_mode():
+            output = self.model(**encoded, position_ids=position_ids, return_dict=True)
+            embeddings = _mean_pool(output.last_hidden_state, encoded["attention_mask"])
+            if self.normalize:
+                embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=-1)
+        return embeddings.float()
+
+    def encode(self, texts: Sequence[str], *, batch_size: int = 64) -> np.ndarray:
+        values: list[np.ndarray] = []
+        for start in range(0, len(texts), batch_size):
+            encoded = self.tokenizer(
+                list(texts[start : start + batch_size]),
+                padding=True,
+                truncation=True,
+                max_length=self.max_length,
+                return_tensors="pt",
+            )
+            values.append(self._forward(encoded).cpu().numpy())
+        if not values:
+            return np.empty((0, self.dimension), dtype=np.float32)
+        return np.ascontiguousarray(np.concatenate(values), dtype=np.float32)
+
+    def encode_hidden(self, text: str, span: CharRange) -> np.ndarray:
+        encoded = self.tokenizer(
+            text,
+            padding=False,
+            truncation=True,
+            max_length=self.max_length,
+            return_offsets_mapping=True,
+            return_tensors="pt",
+        )
+        offsets = encoded.pop("offset_mapping")[0].tolist()
+        indices = _overlap_indices(offsets, span)
+        encoded["input_ids"] = encoded["input_ids"].clone()
+        encoded["attention_mask"] = encoded["attention_mask"].clone()
+        encoded["input_ids"][0, indices] = _neutral_token_id(self.tokenizer)
+        encoded["attention_mask"][0, indices] = 0
+        if int(encoded["attention_mask"].sum()) == 0:
+            raise ValueError("intervention hid every retriever token")
+        return self._forward(encoded)[0].cpu().numpy().astype(np.float32, copy=False)
+
+    def encode_replaced(self, text: str, span: CharRange, donor_text: str) -> np.ndarray:
+        torch = _torch()
+        encoded = self.tokenizer(
+            text,
+            padding=False,
+            truncation=True,
+            max_length=self.max_length,
+            return_offsets_mapping=True,
+            return_tensors="pt",
+        )
+        offsets = encoded.pop("offset_mapping")[0].tolist()
+        indices = _overlap_indices(offsets, span)
+        replacements = _replacement_ids(self.tokenizer, donor_text, len(indices))
+        encoded["input_ids"] = encoded["input_ids"].clone()
+        encoded["input_ids"][0, indices] = torch.tensor(replacements, dtype=torch.long)
+        return self._forward(encoded)[0].cpu().numpy().astype(np.float32, copy=False)
+
+    @staticmethod
+    def score(query_embedding: np.ndarray, chunk_embedding: np.ndarray) -> float:
+        return float(np.dot(query_embedding.astype(np.float32), chunk_embedding.astype(np.float32)))
+
+
+class CrossEncoderReranker:
+    def __init__(
+        self,
+        model_path: Path,
+        *,
+        device: str = "cuda:0",
+        max_length: int = 512,
+    ) -> None:
+        torch = _torch()
+        try:
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError("transformers is required") from exc
+        self.model_path = Path(model_path)
+        self.device = torch.device(device)
+        self.max_length = max_length
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_path, local_files_only=True, use_fast=True
+        )
+        self.model = (
+            AutoModelForSequenceClassification.from_pretrained(
+                self.model_path, local_files_only=True
+            )
+            .eval()
+            .to(self.device)
+        )
+
+    def _score_encoded(self, encoded: Any) -> np.ndarray:
+        torch = _torch()
+        encoded = {
+            key: value.to(self.device) for key, value in encoded.items() if key != "offset_mapping"
+        }
+        position_ids = torch.arange(encoded["input_ids"].shape[-1], device=self.device).unsqueeze(0)
+        if encoded["input_ids"].shape[0] > 1:
+            position_ids = position_ids.expand(encoded["input_ids"].shape[0], -1)
+        with torch.inference_mode():
+            logits = self.model(
+                **encoded, position_ids=position_ids, return_dict=True
+            ).logits.float()
+            if logits.shape[-1] == 1:
+                scores = logits[:, 0]
+            elif logits.shape[-1] == 2:
+                scores = logits[:, 1]
+            else:
+                raise ValueError(f"unsupported reranker output width {logits.shape[-1]}")
+        return scores.cpu().numpy()
+
+    def score_pairs(self, query: str, chunks: Sequence[str], *, batch_size: int = 32) -> np.ndarray:
+        scores: list[np.ndarray] = []
+        for start in range(0, len(chunks), batch_size):
+            batch = list(chunks[start : start + batch_size])
+            encoded = self.tokenizer(
+                [query] * len(batch),
+                batch,
+                padding=True,
+                truncation=True,
+                max_length=self.max_length,
+                return_tensors="pt",
+            )
+            scores.append(self._score_encoded(encoded))
+        return np.concatenate(scores) if scores else np.empty(0, dtype=np.float32)
+
+    def score_hidden(self, query: str, chunk: str, span: CharRange) -> float:
+        encoded = self.tokenizer(
+            query,
+            chunk,
+            padding=False,
+            truncation=True,
+            max_length=self.max_length,
+            return_offsets_mapping=True,
+            return_tensors="pt",
+        )
+        offsets = encoded.pop("offset_mapping")[0].tolist()
+        sequence_ids = encoded.sequence_ids(0)
+        chunk_indices = [
+            index for index, sequence_id in enumerate(sequence_ids) if sequence_id == 1
+        ]
+        indices = _overlap_indices(offsets, span, eligible=chunk_indices)
+        encoded["input_ids"] = encoded["input_ids"].clone()
+        encoded["attention_mask"] = encoded["attention_mask"].clone()
+        encoded["input_ids"][0, indices] = _neutral_token_id(self.tokenizer)
+        encoded["attention_mask"][0, indices] = 0
+        return float(self._score_encoded(encoded)[0])
+
+    def score_replaced(self, query: str, chunk: str, span: CharRange, donor_text: str) -> float:
+        torch = _torch()
+        encoded = self.tokenizer(
+            query,
+            chunk,
+            padding=False,
+            truncation=True,
+            max_length=self.max_length,
+            return_offsets_mapping=True,
+            return_tensors="pt",
+        )
+        offsets = encoded.pop("offset_mapping")[0].tolist()
+        sequence_ids = encoded.sequence_ids(0)
+        chunk_indices = [
+            index for index, sequence_id in enumerate(sequence_ids) if sequence_id == 1
+        ]
+        indices = _overlap_indices(offsets, span, eligible=chunk_indices)
+        replacements = _replacement_ids(self.tokenizer, donor_text, len(indices))
+        encoded["input_ids"] = encoded["input_ids"].clone()
+        encoded["input_ids"][0, indices] = torch.tensor(replacements, dtype=torch.long)
+        return float(self._score_encoded(encoded)[0])
+
+
+@dataclass(frozen=True)
+class PromptLayout:
+    prompt: str
+    chunk_ranges: dict[str, CharRange]
+
+
+class CausalAnswerGenerator:
+    def __init__(
+        self,
+        model_path: Path,
+        *,
+        device: str = "cuda:0",
+        max_new_tokens: int = 32,
+        seed: int = 0,
+    ) -> None:
+        torch = _torch()
+        try:
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError("transformers is required") from exc
+        self.model_path = Path(model_path)
+        self.device = torch.device(device)
+        self.max_new_tokens = max_new_tokens
+        self.seed = seed
+        set_deterministic(seed)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_path, local_files_only=True, use_fast=True
+        )
+        if self.tokenizer.pad_token_id is None:
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+        self.model = (
+            AutoModelForCausalLM.from_pretrained(
+                self.model_path,
+                local_files_only=True,
+                torch_dtype=torch.float16 if self.device.type == "cuda" else torch.float32,
+                attn_implementation="eager",
+                low_cpu_mem_usage=True,
+            )
+            .eval()
+            .to(self.device)
+        )
+
+    def build_prompt(self, query: str, ordered_chunks: Sequence[tuple[str, str]]) -> PromptLayout:
+        parts = [
+            "Answer the query using only the supplied contexts. Be short and factual.\n",
+            "Return exactly one non-empty line in this form: FINAL_ANSWER: <answer>\n\n",
+        ]
+        for position, (chunk_id, text) in enumerate(ordered_chunks):
+            header = f"CONTEXT[{position}]:\n"
+            parts.append(header)
+            parts.append(text)
+            parts.append("\n\n")
+        parts.append(f"QUERY:\n{query}")
+        content = "".join(parts)
+        if getattr(self.tokenizer, "chat_template", None):
+            prompt = self.tokenizer.apply_chat_template(
+                [{"role": "user", "content": content}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        else:
+            prompt = content + "\n\nASSISTANT:\n"
+        prompt += "FINAL_ANSWER: "
+        ranges: dict[str, CharRange] = {}
+        cursor = 0
+        for chunk_id, text in ordered_chunks:
+            start = prompt.find(text, cursor)
+            if start < 0:
+                raise ValueError(f"chat template did not preserve context chunk {chunk_id}")
+            end = start + len(text)
+            ranges[chunk_id] = CharRange(start=start, end=end)
+            cursor = end
+        return PromptLayout(prompt=prompt, chunk_ranges=ranges)
+
+    def generate_shadow(self, layout: PromptLayout) -> tuple[str, str]:
+        torch = _torch()
+        set_deterministic(self.seed)
+        encoded = self.tokenizer(layout.prompt, return_tensors="pt", add_special_tokens=True)
+        encoded = {key: value.to(self.device) for key, value in encoded.items()}
+        with torch.inference_mode():
+            output = self.model.generate(
+                **encoded,
+                do_sample=False,
+                temperature=None,
+                top_p=None,
+                top_k=None,
+                max_new_tokens=self.max_new_tokens,
+                use_cache=True,
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,
+            )
+        continuation = self.tokenizer.decode(
+            output[0, encoded["input_ids"].shape[-1] :], skip_special_tokens=True
+        )
+        answer = parse_final_answer("FINAL_ANSWER: " + continuation)
+        return answer, continuation
+
+    def teacher_score(
+        self,
+        layout: PromptLayout,
+        answer: str,
+        *,
+        chunk_id: str | None = None,
+        hidden_span: CharRange | None = None,
+        donor_text: str | None = None,
+    ) -> float:
+        torch = _torch()
+        suffix = answer
+        full_text = layout.prompt + suffix
+        encoded = self.tokenizer(
+            full_text,
+            return_offsets_mapping=True,
+            return_tensors="pt",
+            add_special_tokens=True,
+        )
+        offsets = encoded.pop("offset_mapping")[0].tolist()
+        answer_chars = CharRange(start=len(layout.prompt), end=len(full_text))
+        answer_indices = _overlap_indices(offsets, answer_chars)
+        answer_mask = torch.zeros_like(encoded["input_ids"], dtype=torch.bool)
+        answer_mask[0, answer_indices] = True
+        if hidden_span is not None:
+            if chunk_id is None or chunk_id not in layout.chunk_ranges:
+                raise ValueError("hidden intervention requires a mapped chunk_id")
+            chunk_range = layout.chunk_ranges[chunk_id]
+            prompt_span = CharRange(
+                start=chunk_range.start + hidden_span.start,
+                end=chunk_range.start + hidden_span.end,
+            )
+            if prompt_span.end > chunk_range.end:
+                raise ValueError("hidden span exceeds the target chunk")
+            hidden_indices = _overlap_indices(offsets, prompt_span)
+            if set(hidden_indices) & set(answer_indices):
+                raise AssertionError("chunk intervention overlaps answer tokens")
+            encoded["input_ids"] = encoded["input_ids"].clone()
+            encoded["attention_mask"] = encoded["attention_mask"].clone()
+            if donor_text is None:
+                encoded["input_ids"][0, hidden_indices] = _neutral_token_id(self.tokenizer)
+                encoded["attention_mask"][0, hidden_indices] = 0
+            else:
+                replacements = _replacement_ids(self.tokenizer, donor_text, len(hidden_indices))
+                encoded["input_ids"][0, hidden_indices] = torch.tensor(
+                    replacements, dtype=torch.long
+                )
+        input_ids = encoded["input_ids"].to(self.device)
+        attention_mask = encoded["attention_mask"].to(self.device)
+        answer_mask = answer_mask.to(self.device)
+        position_ids = torch.arange(input_ids.shape[-1], device=self.device).unsqueeze(0)
+        return teacher_forced_mean_logp(
+            self.model,
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            answer_mask=answer_mask,
+        )

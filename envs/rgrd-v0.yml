@@ -1,0 +1,23 @@
+name: rgrd-v0
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch=1.13.0
+  - pytorch-cuda=11.7
+  - numpy=1.26.*
+  - scipy=1.15.*
+  - pandas=2.3.*
+  - pyarrow=24.*
+  - pyyaml=6.0.*
+  - pip:
+      - accelerate==0.26.1
+      - faiss-cpu==1.8.0
+      - pydantic==2.13.4
+      - protobuf==5.29.6
+      - pytest==7.4.4
+      - sentence-transformers==2.4.0
+      - transformers==4.40.1

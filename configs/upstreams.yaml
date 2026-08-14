@@ -1,0 +1,32 @@
+schema_version: 1
+attack_root: /home/jkl/RAG_attack
+official_root: /home/jkl/RGRD_V0/third_party
+
+poisonedrag:
+  local_root: /home/jkl/RAG_attack
+  official_root: /home/jkl/RGRD_V0/third_party/PoisonedRAG
+  environment: /home/jkl/anaconda3/envs/PoisonedRAG
+  required_paths:
+    - main.py
+    - gen_adv.py
+    - evaluate_beir.py
+    - prepare_dataset.py
+    - run.py
+    - src/attack.py
+  evidence:
+    - /home/jkl/RAG_attack/results/query_results/main/nq-vicuna7b-lm-targeted.json
+    - /home/jkl/RAG_attack/results/query_results/main/hotpotqa-vicuna7b-lm-targeted.json
+    - /home/jkl/RAG_attack/results/query_results/main/msmarco-vicuna7b-lm-targeted.json
+  whitebox_evidence:
+    - /home/jkl/RGRD_V0/artifacts/attacks/poisonedrag_w_nq100.json
+
+phantom:
+  local_root: /home/jkl/RAG_attack/Phantom
+  environment: /home/jkl/anaconda3/envs/phantom-gemma2
+  evidence_root: /home/jkl/RAG_attack/phantom-results
+  required_paths:
+    - rag_poison.py
+    - phantom/attack/hotflip.py
+    - phantom/attack/adv_decoding.py
+    - phantom/generator
+    - reproduction/gemma2_main.yaml

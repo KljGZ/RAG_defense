@@ -1,0 +1,8 @@
+name: rgrd-v0-upstream-proberag
+channels: [pytorch, conda-forge]
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch
+  - pip:
+      - -r /home/jkl/RGRD_V0/third_party/ProbeRAG/requirements.txt

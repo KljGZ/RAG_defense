@@ -1,0 +1,47 @@
+schema_version: 1
+generated_at: '2026-08-14T15:31:56.831256+00:00'
+models:
+  retriever:
+    repository: facebook/contriever
+    revision: 2bd46a25019aeea091fd42d1f0fd4801675cf699
+    local_path: /home/jkl/RAG_attack/models/contriever
+    transport: pre-existing local Hugging Face snapshot in read-only attack evidence
+    content_sha256: d5570f259511da523f1ff069e5e71eef8a9c8444926ca9b26fee4ce23674836f
+    files:
+      config.json: b0c90bd75296f1ffecbdb253ad24175d9b82326010e232e30cb1e8b0739a6884
+      pytorch_model.bin: d0b6e2516913f812360475154323f50e2b1e1da0ce6a435175e08f218784c6fb
+      special_tokens_map.json: 303df45a03609e4ead04bc3dc1536d0ab19b5358db685b6f3da123d05ec200e3
+      tokenizer.json: 5fd1c882abbd30517dced455a2c9768945ec726b96727927e4959348d9de550b
+      tokenizer_config.json: 9a8ed9b01c8a56b555dcdc31cd526ba9e488cfc16ee5a101b3ce64af81d34f3d
+      vocab.txt: b49e80874c5efbc7f4cde245a812673b05ef1360ced56b8bc8c750eaeef3fe0f
+  reranker:
+    repository: cross-encoder/ms-marco-MiniLM-L-6-v2
+    revision: 233902d25c440f23af6f7d6e94d2946bac0bee0a
+    local_path: /mnt/data/jkl/RGRD_V0/models/ms-marco-MiniLM-L-6-v2
+    transport: hf-mirror.com transport for the canonical Hugging Face repository
+    content_sha256: be070eecffaa3b2bcbf51cbb36f9af3f216c074421e23cd98a3bf45cf00e1e40
+    files:
+      config.json: 380e02c93f431831be65d99a4e7e5f67c133985bf2e77d9d4eba46847190bacc
+      model.safetensors: 821d1aa69520101d6e0737f78a042ae25b19e5cb9160701909d10434f4aeb0ae
+      special_tokens_map.json: 3c3507f36dff57bce437223db3b3081d1e2b52ec3e56ee55438193ecb2c94dd6
+      tokenizer.json: d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
+      tokenizer_config.json: a5c2e5a7b1a29a0702cd28c08a399b5ecc110c263009d17f7e3b415f25905fd8
+      vocab.txt: 07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3
+  generator:
+    repository: Qwen/Qwen2.5-7B-Instruct
+    revision: a09a35458c702b33eeacc393d103063234e8bc28
+    local_path: /mnt/data/jkl/RGRD_V0/models/Qwen2.5-7B-Instruct
+    transport: hf-mirror.com transport for the canonical Hugging Face repository
+    content_sha256: 9739ca809e78d9ae3c0f7662552070f1a9117b2720309af13559951ff88ab53b
+    files:
+      config.json: 7463bb0ea78315365e6c6b74de4e73bbcc8359dfb0c5a737584e077d42c0b03c
+      generation_config.json: 3a8f9087e486054c8a4a08dae2e5a3ba62e23da212b5b8c08bc42cb983c3459f
+      merges.txt: 599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3
+      model-00001-of-00004.safetensors: a1333e6293854747c481288ea83b348226af178dd565c49b6f9495ba1966aba7
+      model-00002-of-00004.safetensors: f5d25a2772cb825164a2a2c0fb6d51a87e282abf21e4dd75bc5cfb3cd0ea6185
+      model-00003-of-00004.safetensors: 8efdec4c1bc12317ae1a38dc42b595ce777738a64deea3fcb8a0a91381bcdfd5
+      model-00004-of-00004.safetensors: 1a72d403cdf0c1ec3cb7f289f17b394a01e64394c2e9b3c0f94dbce3faf879bd
+      model.safetensors.index.json: 624bf7c47cd12468fdc16e38a47cf4f19e0415b859a223ba3c027eed2f0e1028
+      tokenizer.json: c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539
+      tokenizer_config.json: 5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583
+      vocab.json: ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910

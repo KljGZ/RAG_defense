@@ -1,0 +1,41 @@
+schema_version: 1
+models:
+  retriever:
+    repository: facebook/contriever
+    revision: 2bd46a25019aeea091fd42d1f0fd4801675cf699
+    local_path: /home/jkl/RAG_attack/models/contriever
+    transport: pre-existing local Hugging Face snapshot in read-only attack evidence
+    include:
+      - config.json
+      - pytorch_model.bin
+      - special_tokens_map.json
+      - tokenizer_config.json
+      - tokenizer.json
+      - vocab.txt
+  reranker:
+    repository: cross-encoder/ms-marco-MiniLM-L-6-v2
+    revision: 233902d25c440f23af6f7d6e94d2946bac0bee0a
+    local_path: /mnt/data/jkl/RGRD_V0/models/ms-marco-MiniLM-L-6-v2
+    transport: hf-mirror.com transport for the canonical Hugging Face repository
+    include:
+      - config.json
+      - model.safetensors
+      - special_tokens_map.json
+      - tokenizer_config.json
+      - tokenizer.json
+      - vocab.txt
+  generator:
+    repository: Qwen/Qwen2.5-7B-Instruct
+    revision: a09a35458c702b33eeacc393d103063234e8bc28
+    local_path: /mnt/data/jkl/RGRD_V0/models/Qwen2.5-7B-Instruct
+    transport: hf-mirror.com transport for the canonical Hugging Face repository
+    include:
+      - config.json
+      - generation_config.json
+      - model.safetensors.index.json
+      - model-*.safetensors
+      - tokenizer.json
+      - tokenizer_config.json
+      - special_tokens_map.json
+      - vocab.json
+      - merges.txt

@@ -1,0 +1,20 @@
+schema_version: 1
+datasets:
+  nq:
+    corpus: /home/jkl/RAG_attack/datasets/nq/corpus.jsonl
+    queries: /home/jkl/RAG_attack/datasets/nq/queries.jsonl
+    qrels: /home/jkl/RAG_attack/datasets/nq/qrels/test.tsv
+    split: test
+    public_benchmark: BEIR/NQ
+  msmarco:
+    corpus: /home/jkl/RAG_attack/datasets/msmarco/corpus.jsonl
+    queries: /home/jkl/RAG_attack/datasets/msmarco/queries.jsonl
+    qrels: /home/jkl/RAG_attack/datasets/msmarco/qrels/train.tsv
+    split: train
+    public_benchmark: BEIR/MSMARCO
+  hotpotqa:
+    corpus: /home/jkl/RAG_attack/datasets/hotpotqa/corpus.jsonl
+    queries: /home/jkl/RAG_attack/datasets/hotpotqa/queries.jsonl
+    qrels: /home/jkl/RAG_attack/datasets/hotpotqa/qrels/test.tsv
+    split: test
+    public_benchmark: BEIR/HotpotQA

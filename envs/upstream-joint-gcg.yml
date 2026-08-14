@@ -1,0 +1,12 @@
+name: rgrd-v0-upstream-joint-gcg
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - -r /home/jkl/RGRD_V0/third_party/Joint-GCG/requirements.txt
+      # The top-level lightning pin does not constrain its distribution twin.
+      - pytorch-lightning==2.4.0
+      # Required by the RGRD provenance/event package imported by the wrapper.
+      - pyarrow==24.0.0

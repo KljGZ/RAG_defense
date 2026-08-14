@@ -1,0 +1,11 @@
+name: rgrd-v0-upstream-poisonedrag
+channels: [pytorch, conda-forge]
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch=1.13
+  - pip:
+      - beir
+      - openai
+      - google-generativeai
+      - "fschat[model_worker,webui]"

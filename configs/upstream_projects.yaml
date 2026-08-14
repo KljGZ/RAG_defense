@@ -1,0 +1,42 @@
+schema_version: 1
+projects:
+  PoisonedRAG:
+    url: https://github.com/sleeepeer/PoisonedRAG
+    environment: envs/upstream-poisonedrag.yml
+    purpose: PoisonedRAG official baseline and white/black-box attack audit
+    license: MIT
+  corpus-poisoning:
+    url: https://github.com/princeton-nlp/corpus-poisoning
+    environment: envs/upstream-corpus-poisoning.yml
+    purpose: retrieval corpus poisoning reference implementation
+    license: MIT
+  Joint-GCG:
+    url: https://github.com/NicerWang/Joint-GCG
+    environment: envs/upstream-joint-gcg.yml
+    purpose: fused retrieval-generation boundary attack
+    license: NOASSERTION
+  RAG-Responsibility-Attribution:
+    url: https://github.com/zhangbl6618/RAG-Responsibility-Attribution
+    environment: envs/upstream-rag-responsibility.yml
+    purpose: responsibility-attribution comparison
+    license: MIT
+  GRADA:
+    url: https://github.com/agrzheng/GRADA
+    environment: envs/upstream-grada.yml
+    purpose: gradient attribution comparison
+    license: MIT
+  RAGuard:
+    url: https://github.com/RAGuard-AI/RAGuard
+    environment: envs/upstream-raguard.yml
+    purpose: RAG defense baseline
+    license: MIT
+  RAGDefender:
+    url: https://github.com/SecAI-Lab/RAGDefender
+    environment: envs/upstream-ragdefender.yml
+    purpose: RAG defense baseline
+    license: MIT
+  ProbeRAG:
+    url: https://github.com/XMUDeepLIT/ProbeRAG
+    environment: envs/upstream-proberag.yml
+    purpose: probing-based defense comparison
+    license: NOASSERTION

@@ -1,0 +1,126 @@
+schema_version: 1
+projects:
+- name: PoisonedRAG
+  url: https://github.com/sleeepeer/PoisonedRAG
+  commit: f660d72174f06b13fae5163ce656e7b235db858f
+  branch: main
+  license:
+    spdx: MIT
+    files:
+    - path: LICENSE
+      sha256: e35412de8b30303adc3be2183468f94558e291e4b818276af538d88b9c4449b6
+  environment: envs/upstream-poisonedrag.yml
+  purpose: PoisonedRAG official baseline and white/black-box attack audit
+  local_modifications:
+    dirty: false
+    status_sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    entries: []
+  retrieved_at: '2026-08-14T14:45:00.626647+00:00'
+- name: corpus-poisoning
+  url: https://github.com/princeton-nlp/corpus-poisoning
+  commit: f3726e487bb1a8b96913f54ed1927a1e3c864211
+  branch: main
+  license:
+    spdx: MIT
+    files:
+    - path: LICENSE
+      sha256: 8872dbf8660b00890b5e07ce1ea1f7a44fa7ae4e1857da56caba172b51dab3cb
+  environment: envs/upstream-corpus-poisoning.yml
+  purpose: retrieval corpus poisoning reference implementation
+  local_modifications:
+    dirty: false
+    status_sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    entries: []
+  retrieved_at: '2026-08-14T14:45:00.724441+00:00'
+- name: Joint-GCG
+  url: https://github.com/NicerWang/Joint-GCG
+  commit: 8707acb23954d9683483b9dc2406684c301a39d2
+  branch: main
+  license:
+    spdx: NOASSERTION
+    files: []
+  environment: envs/upstream-joint-gcg.yml
+  purpose: fused retrieval-generation boundary attack
+  local_modifications:
+    dirty: false
+    status_sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    entries: []
+  retrieved_at: '2026-08-14T14:45:00.843049+00:00'
+- name: RAG-Responsibility-Attribution
+  url: https://github.com/zhangbl6618/RAG-Responsibility-Attribution
+  commit: fd124bf0c401370d4bcd701a92d952e2fe11ed32
+  branch: main
+  license:
+    spdx: MIT
+    files:
+    - path: LICENSE
+      sha256: 9aefff5f89c2cc5b74aab73be0ea80af21bc39fe1c07d826d0e28b844aef5f89
+  environment: envs/upstream-rag-responsibility.yml
+  purpose: responsibility-attribution comparison
+  local_modifications:
+    dirty: false
+    status_sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    entries: []
+  retrieved_at: '2026-08-14T14:45:01.072981+00:00'
+- name: GRADA
+  url: https://github.com/agrzheng/GRADA
+  commit: b050f0123c7923d990a24fc2ffc44d890bbdf605
+  branch: main
+  license:
+    spdx: MIT
+    files:
+    - path: LICENSE
+      sha256: ff63c61a4bdefe138b6079a74df868d462e125685717944783794103cab5439f
+  environment: envs/upstream-grada.yml
+  purpose: gradient attribution comparison
+  local_modifications:
+    dirty: false
+    status_sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    entries: []
+  retrieved_at: '2026-08-14T14:45:01.130356+00:00'
+- name: RAGuard
+  url: https://github.com/RAGuard-AI/RAGuard
+  commit: f5c7e474266a8cd5b6e10e675011f67741ab6c1d
+  branch: main
+  license:
+    spdx: MIT
+    files:
+    - path: LICENSE
+      sha256: a3b7138d9a52b256a00643113e97d6b55f599a096dd0c2edc0395026c05ffe75
+  environment: envs/upstream-raguard.yml
+  purpose: RAG defense baseline
+  local_modifications:
+    dirty: false
+    status_sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    entries: []
+  retrieved_at: '2026-08-14T14:45:01.288508+00:00'
+- name: RAGDefender
+  url: https://github.com/SecAI-Lab/RAGDefender
+  commit: ba2a17efba165d45409114df2d70b030ade1e1b8
+  branch: main
+  license:
+    spdx: MIT
+    files:
+    - path: LICENSE
+      sha256: eddb7e92ed7e5c9a26f407a863f0d555626d37e954d038e7839c3807b855e38d
+  environment: envs/upstream-ragdefender.yml
+  purpose: RAG defense baseline
+  local_modifications:
+    dirty: false
+    status_sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    entries: []
+  retrieved_at: '2026-08-14T14:45:02.037318+00:00'
+- name: ProbeRAG
+  url: https://github.com/XMUDeepLIT/ProbeRAG
+  commit: 4ce8c132fdcd63a2c44203e738fe6993b9f2824b
+  branch: main
+  license:
+    spdx: NOASSERTION
+    files: []
+  environment: envs/upstream-proberag.yml
+  purpose: probing-based defense comparison
+  local_modifications:
+    dirty: false
+    status_sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    entries: []
+  retrieved_at: '2026-08-14T14:45:02.089497+00:00'
