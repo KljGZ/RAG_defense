@@ -77,6 +77,16 @@ The generator is the pinned `Qwen/Qwen2.5-7B-Instruct` revision recorded in
 `configs/models.lock.yaml`. Model files, complete upstream clones, indexes, attacks,
 and raw events are runtime data and are intentionally excluded from Git.
 
+The generator precision contract is explicit: Track-B loads Qwen in `bfloat16`
+with eager attention, matching the pinned model configuration. The loaded dtype is
+recorded during model preflight. CUDA execution uses strict deterministic algorithms
+with `CUBLAS_WORKSPACE_CONFIG=:4096:8`; unsupported nondeterministic kernels fail
+instead of being reduced to warnings. Non-finite teacher-forced scores are fatal in
+model preflight, Gate 2, no-op calibration, and role attribution; they must never be
+clipped or interpreted as zero effect. Track-A generation caches and Joint-GCG
+projection caches include precision-protocol metadata so stale FP16 or incompletely
+deterministic outputs are not reused.
+
 ## Gate-controlled full run
 
 The runner is restart-safe only within the same committed detector/model/config

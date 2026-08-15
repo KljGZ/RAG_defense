@@ -86,6 +86,8 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
         device=args.device,
         max_new_tokens=int(track["generator_max_new_tokens"]),
         seed=int(pipeline_config["seed"]),
+        dtype=str(models["generator"]["dtype"]),
+        attention_implementation=str(models["generator"]["attention_implementation"]),
     )
     noise_path = root / "artifacts/statistics/noop_noise_floor.json"
     if not noise_path.is_file():

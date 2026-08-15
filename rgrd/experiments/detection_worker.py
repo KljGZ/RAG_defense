@@ -39,6 +39,8 @@ def _pipeline(root: Path, dataset: str, device: str, model_revision: dict[str, s
             device=device,
             max_new_tokens=int(track["generator_max_new_tokens"]),
             seed=int(config["seed"]),
+            dtype=str(models["generator"]["dtype"]),
+            attention_implementation=str(models["generator"]["attention_implementation"]),
         ),
         dense_top_b=int(track["dense_top_b"]),
         rerank_top_k=int(track["rerank_top_k"]),

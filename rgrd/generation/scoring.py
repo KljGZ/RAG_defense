@@ -39,6 +39,8 @@ def mean_causal_answer_logprob(
     logits = np.asarray(logits, dtype=float)
     labels = np.asarray(labels, dtype=int)
     answer_mask = np.asarray(answer_mask, dtype=bool)
+    if not np.all(np.isfinite(logits)):
+        raise FloatingPointError("causal answer logits must be finite")
     if logits.ndim == 3:
         if logits.shape[0] != 1:
             raise ValueError("only batch size one is supported by the scalar scorer")
@@ -88,7 +90,8 @@ def teacher_forced_mean_logp(
             position_ids=position_ids,
             use_cache=False,
         )
-        logits = outputs.logits.float()
+        raw_logits = outputs.logits
+        logits = raw_logits.float()
         labels = input_ids
         shifted_logits = logits[..., :-1, :]
         shifted_labels = labels[..., 1:]
@@ -98,8 +101,25 @@ def teacher_forced_mean_logp(
         selected = selected[shifted_mask]
         if selected.numel() == 0:
             raise ValueError("answer mask contains no scoreable tokens")
+        finite = torch.isfinite(selected)
+        if not bool(finite.all()):
+            nonfinite = int((~finite).sum().item())
+            raise FloatingPointError(
+                "teacher-forced answer log-probabilities are non-finite: "
+                f"{nonfinite}/{selected.numel()} answer tokens; "
+                f"logits_dtype={raw_logits.dtype}; sequence_length={input_ids.shape[-1]}"
+            )
         return float(selected.mean().cpu())
 
 
 def generation_effect(full_mean_logp: float, hidden_mean_logp: float) -> float:
-    return float(full_mean_logp) - float(hidden_mean_logp)
+    full = float(full_mean_logp)
+    hidden = float(hidden_mean_logp)
+    if not math.isfinite(full) or not math.isfinite(hidden):
+        raise FloatingPointError(
+            f"generation scores must be finite, observed full={full}, hidden={hidden}"
+        )
+    effect = full - hidden
+    if not math.isfinite(effect):
+        raise FloatingPointError(f"generation effect must be finite, observed {effect}")
+    return effect

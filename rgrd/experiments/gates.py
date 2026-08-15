@@ -42,6 +42,16 @@ def _config(root: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]
     return pipeline, datasets, revisions
 
 
+def _finite_positive_total(values: list[float], *, label: str) -> float:
+    array = np.asarray(values, dtype=float)
+    if array.ndim != 1 or len(array) == 0:
+        raise ValueError(f"{label} must be a non-empty effect vector")
+    nonfinite = np.flatnonzero(~np.isfinite(array)).tolist()
+    if nonfinite:
+        raise FloatingPointError(f"{label} contains non-finite effects at indices {nonfinite}")
+    return float(np.clip(array, 0.0, None).sum())
+
+
 def _lineage_errors(selected: list[Any], generator_tokenizer: Any) -> list[str]:
     errors: list[str] = []
     for candidate in selected:
@@ -89,7 +99,7 @@ def determinism_gate(
             repeats: list[dict[str, Any]] = []
             for _ in range(2):
                 _, selected, frozen = pipeline.retrieve(query)
-                event, _ = pipeline.build_detector_event(
+                event, layout = pipeline.build_detector_event(
                     query_id=query_id,
                     query=query,
                     dataset=dataset,
@@ -100,29 +110,45 @@ def determinism_gate(
                     seed=int(pipeline_config["seed"]),
                 )
                 lineage = _lineage_errors(selected, pipeline.generator.tokenizer)
+                teacher_score: float | None
+                teacher_score_error: str | None = None
+                try:
+                    teacher_score = pipeline.generator.teacher_score(layout, event.shadow_answer)
+                except FloatingPointError as exc:
+                    teacher_score = None
+                    teacher_score_error = str(exc)
                 repeats.append(
                     {
                         "context_order": list(event.context_order),
                         "shadow_answer": event.shadow_answer,
                         "event_sha256": stable_event_hash(event),
                         "lineage_errors": lineage,
+                        "teacher_score": teacher_score,
+                        "teacher_score_error": teacher_score_error,
                     }
                 )
             exact_top_k = repeats[0]["context_order"] == repeats[1]["context_order"]
             exact_shadow = repeats[0]["shadow_answer"] == repeats[1]["shadow_answer"]
             lineage_ok = not repeats[0]["lineage_errors"] and not repeats[1]["lineage_errors"]
+            teacher_scores_finite = all(
+                repeat["teacher_score"] is not None and np.isfinite(float(repeat["teacher_score"]))
+                for repeat in repeats
+            )
             if not exact_top_k:
                 failures.append(f"{query_id}: final Top-K differs across repeats")
             if not exact_shadow:
                 failures.append(f"{query_id}: shadow answer differs across repeats")
             if not lineage_ok:
                 failures.append(f"{query_id}: source/chunk/token lineage validation failed")
+            if not teacher_scores_finite:
+                failures.append(f"{query_id}: teacher-forced shadow score is non-finite")
             rows.append(
                 {
                     "query_id": query_id,
                     "exact_top_k": exact_top_k,
                     "exact_shadow_answer": exact_shadow,
                     "lineage_ok": lineage_ok,
+                    "teacher_scores_finite": teacher_scores_finite,
                     "repeats": repeats,
                 }
             )
@@ -140,6 +166,7 @@ def determinism_gate(
                 "same-seed final Top-K is exactly identical",
                 "deterministic shadow answer is exactly identical",
                 "source-to-chunk-to-generator-token offsets validate",
+                "teacher-forced shadow-answer scores are finite",
             ],
             "reasons": failures or [f"all {count} queries passed every exact check"],
         },
@@ -200,8 +227,15 @@ def calibrate_noop(
                 atoms = aggregate_overlapping_span_effects(
                     (span.char_range, retrieval_delta, generation_delta) for span in spans
                 )
-                retrieval_total = sum(max(0.0, atom.retrieval_effect) for atom in atoms)
-                generation_total = sum(max(0.0, atom.generation_effect) for atom in atoms)
+                sample_label = f"no-op {query_id}/{candidate.chunk.chunk_id}"
+                retrieval_total = _finite_positive_total(
+                    [atom.retrieval_effect for atom in atoms],
+                    label=f"{sample_label} retrieval",
+                )
+                generation_total = _finite_positive_total(
+                    [atom.generation_effect for atom in atoms],
+                    label=f"{sample_label} generation",
+                )
                 retrieval_values.append(retrieval_total)
                 generation_values.append(generation_total)
                 rows.append(

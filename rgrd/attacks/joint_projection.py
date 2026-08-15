@@ -15,6 +15,22 @@ import numpy as np
 from rgrd.provenance import sha256_file, utc_now
 
 
+PRECISION_PROTOCOL = "model-config-native-v2"
+CUBLAS_WORKSPACE_CONFIG = ":4096:8"
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", CUBLAS_WORKSPACE_CONFIG)
+
+
+def _model_dtype(model: Any) -> str:
+    dtypes = {
+        str(parameter.dtype).removeprefix("torch.")
+        for parameter in model.parameters()
+        if parameter.is_floating_point()
+    }
+    if len(dtypes) != 1:
+        raise RuntimeError(f"projection model must use one dtype, observed {sorted(dtypes)}")
+    return next(iter(dtypes))
+
+
 def _atomic_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -36,6 +52,7 @@ def _seed(seed: int) -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -80,7 +97,7 @@ def _common_embedding_pairs(
         AutoModel.from_pretrained(
             retriever_path,
             local_files_only=True,
-            torch_dtype=torch.float16,
+            torch_dtype="auto",
             low_cpu_mem_usage=True,
         )
         .eval()
@@ -90,7 +107,7 @@ def _common_embedding_pairs(
         AutoModel.from_pretrained(
             generator_path,
             local_files_only=True,
-            torch_dtype=torch.float16,
+            torch_dtype="auto",
             low_cpu_mem_usage=True,
         )
         .eval()
@@ -115,6 +132,8 @@ def _common_embedding_pairs(
         "retriever_dimension": int(retriever_values.shape[1]),
         "generator_vocab": len(generator_vocab),
         "retriever_vocab": len(retriever_vocab),
+        "generator_dtype": _model_dtype(generator),
+        "retriever_dtype": _model_dtype(retriever),
     }
     del generator, retriever
     gc.collect()
@@ -267,7 +286,7 @@ def _project_full_generator_vocab(
         AutoModel.from_pretrained(
             generator_path,
             local_files_only=True,
-            torch_dtype=torch.float16,
+            torch_dtype="auto",
             low_cpu_mem_usage=True,
         )
         .eval()
@@ -290,6 +309,7 @@ def _project_full_generator_vocab(
         "generator_vocab": int(embeddings.shape[0]),
         "generator_dimension": int(embeddings.shape[1]),
         "retriever_dimension": int(saved["retriever_dimension"]),
+        "generator_dtype": _model_dtype(generator),
     }
     del projected, generator, encoder
     gc.collect()
@@ -314,7 +334,7 @@ def _calculate_transfer_matrix(
         AutoModel.from_pretrained(
             retriever_path,
             local_files_only=True,
-            torch_dtype=torch.float16,
+            torch_dtype="auto",
             low_cpu_mem_usage=True,
         )
         .eval()
@@ -356,6 +376,7 @@ def _calculate_transfer_matrix(
         "equivalence": "same minimum-norm estimand as the official per-token torch.linalg.lstsq loop",
         "validation_indices": validation_indices,
         "relative_reconstruction_errors": reconstruction_errors,
+        "retriever_dtype": _model_dtype(retriever),
     }
     del matrix, retriever, retriever_embeddings, projection, middle, inverse, gram
     gc.collect()
@@ -379,7 +400,9 @@ def build_projection(
     transfer_path = output / "transfer_matrix.npy"
     if manifest_path.is_file() and transfer_path.is_file():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if manifest.get("transfer_matrix_sha256") == sha256_file(transfer_path):
+        if manifest.get("precision_protocol") == PRECISION_PROTOCOL and manifest.get(
+            "transfer_matrix_sha256"
+        ) == sha256_file(transfer_path):
             return manifest
     _seed(seed)
     generator_values, retriever_values, common = _common_embedding_pairs(
@@ -408,6 +431,7 @@ def build_projection(
     )
     manifest = {
         "schema_version": 1,
+        "precision_protocol": PRECISION_PROTOCOL,
         "completed_at": utc_now(),
         "seed": seed,
         "retriever_path": str(retriever_path.resolve()),

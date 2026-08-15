@@ -38,8 +38,14 @@ def compute_role_map(
     generation = np.asarray(list(generation_effects), dtype=float)
     if retrieval.ndim != 1 or retrieval.shape != generation.shape or len(retrieval) == 0:
         raise ValueError("retrieval and generation effects must be equal non-empty vectors")
-    if not np.all(np.isfinite(retrieval)) or not np.all(np.isfinite(generation)):
-        raise ValueError("role effects must be finite")
+    retrieval_nonfinite = np.flatnonzero(~np.isfinite(retrieval)).tolist()
+    generation_nonfinite = np.flatnonzero(~np.isfinite(generation)).tolist()
+    if retrieval_nonfinite or generation_nonfinite:
+        raise ValueError(
+            "role effects must be finite; "
+            f"retrieval_nonfinite={retrieval_nonfinite}; "
+            f"generation_nonfinite={generation_nonfinite}"
+        )
     positive_r = np.clip(retrieval, 0.0, None)
     positive_g = np.clip(generation, 0.0, None)
     total_r = float(positive_r.sum())

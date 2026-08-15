@@ -3,14 +3,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import random
 import sys
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-import numpy as np
+CUBLAS_WORKSPACE_CONFIG = ":4096:8"
+GENERATOR_DTYPE = "bfloat16"
+GENERATOR_ATTENTION_IMPLEMENTATION = "eager"
+GENERATION_PROTOCOL = "rgrd-track-a-qwen-chat-v3-bf16-deterministic"
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", CUBLAS_WORKSPACE_CONFIG)
 
 
 @contextmanager
@@ -49,6 +52,8 @@ def run_whitebox_smoke(
 ) -> list[dict[str, Any]]:
     """Run the locally audited PoisonedRAG HotFlip path without writing attack_root."""
 
+    from rgrd.models.adapters import set_deterministic
+
     import torch
     from transformers import AutoTokenizer
 
@@ -59,9 +64,7 @@ def run_whitebox_smoke(
     if attack_root in output_path.parents:
         raise ValueError("smoke output must not be written under the read-only attack root")
     torch.cuda.set_device(gpu)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
+    set_deterministic(seed)
     sys.path.insert(0, str(attack_root))
     from src.attack import Attacker
     from src.contriever_src.contriever import Contriever
@@ -176,6 +179,8 @@ def run_whitebox_smoke(
         device=f"cuda:{gpu}",
         max_new_tokens=32,
         seed=seed,
+        dtype=GENERATOR_DTYPE,
+        attention_implementation=GENERATOR_ATTENTION_IMPLEMENTATION,
     )
     completed_rows: list[dict[str, Any]] = []
     existing: dict[str, dict[str, Any]] = {}
@@ -183,9 +188,12 @@ def run_whitebox_smoke(
         for iteration in json.loads(output_path.read_text(encoding="utf-8")):
             for values in iteration.values():
                 for row in values:
-                    if row.get("generation_protocol") == "rgrd-track-a-qwen-chat-v1" and row.get(
-                        "generator_path"
-                    ) == str(generator_path):
+                    if (
+                        row.get("generation_protocol") == GENERATION_PROTOCOL
+                        and row.get("generator_path") == str(generator_path)
+                        and row.get("generator_dtype") == generator.model_dtype
+                        and row.get("generator_precision") == generator.precision_metadata()
+                    ):
                         existing[str(row["id"])] = row
     for row in rows:
         if row["id"] in existing:
@@ -197,11 +205,15 @@ def run_whitebox_smoke(
             [(f"track-a-context-{index}", text) for index, text in enumerate(contexts)],
         )
         answer, continuation = generator.generate_shadow(layout)
+        teacher_score = generator.teacher_score(layout, answer)
         row["input_prompt"] = layout.prompt
         row["output_poison"] = answer
         row["output_continuation"] = continuation
-        row["generation_protocol"] = "rgrd-track-a-qwen-chat-v1"
+        row["generation_protocol"] = GENERATION_PROTOCOL
         row["generator_path"] = str(generator_path)
+        row["generator_dtype"] = generator.model_dtype
+        row["generator_precision"] = generator.precision_metadata()
+        row["teacher_mean_logp"] = teacher_score
         completed_rows.append(row)
         _save(output_path, [{"iter_0": completed_rows}])
     return completed_rows

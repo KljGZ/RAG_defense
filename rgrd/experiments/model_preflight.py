@@ -6,6 +6,7 @@ import os
 import tempfile
 from pathlib import Path
 
+import numpy as np
 import yaml
 
 from rgrd.models import CausalAnswerGenerator, CrossEncoderReranker, DenseRetriever
@@ -47,6 +48,8 @@ def preflight(root: Path, device: str) -> dict[str, object]:
         device=device,
         max_new_tokens=int(track["generator_max_new_tokens"]),
         seed=int(config["seed"]),
+        dtype=str(models["generator"]["dtype"]),
+        attention_implementation=str(models["generator"]["attention_implementation"]),
     )
     layout = generator.build_prompt("Who wrote Hamlet?", [("c1", texts[0]), ("c2", texts[1])])
     answer, continuation = generator.generate_shadow(layout)
@@ -56,6 +59,20 @@ def preflight(root: Path, device: str) -> dict[str, object]:
     )
     if not answer:
         raise AssertionError("generator produced an empty parsed FINAL_ANSWER")
+    numeric_checks = {
+        "dense": dense,
+        "hidden_dense": hidden_dense,
+        "reranker": rerank,
+        "hidden_reranker": [hidden_rerank],
+        "teacher_scores": [full_logp, hidden_logp],
+    }
+    nonfinite = [
+        name
+        for name, values in numeric_checks.items()
+        if not np.all(np.isfinite(np.asarray(values, dtype=float)))
+    ]
+    if nonfinite:
+        raise FloatingPointError(f"model preflight produced non-finite values: {nonfinite}")
     result = {
         "schema_version": 1,
         "captured_at": utc_now(),
@@ -77,6 +94,7 @@ def preflight(root: Path, device: str) -> dict[str, object]:
             "continuation": continuation,
             "teacher_full_mean_logp": full_logp,
             "teacher_hidden_mean_logp": hidden_logp,
+            "generator_precision": generator.precision_metadata(),
         },
         "passed": True,
     }

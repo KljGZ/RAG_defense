@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import random
 import os
+import random
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Sequence
@@ -12,7 +12,8 @@ from rgrd.generation import parse_final_answer, teacher_forced_mean_logp
 from rgrd.schema import CharRange
 
 
-os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+_CUBLAS_WORKSPACE_CONFIG = ":4096:8"
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", _CUBLAS_WORKSPACE_CONFIG)
 
 
 def _torch() -> Any:
@@ -23,6 +24,39 @@ def _torch() -> Any:
     return torch
 
 
+_MODEL_DTYPE_ALIASES = {
+    "auto": "auto",
+    "bf16": "bfloat16",
+    "bfloat16": "bfloat16",
+    "fp16": "float16",
+    "float16": "float16",
+    "fp32": "float32",
+    "float32": "float32",
+}
+
+
+def _resolve_model_dtype(torch: Any, requested: str, device: Any) -> tuple[str, Any]:
+    normalized = _MODEL_DTYPE_ALIASES.get(str(requested).strip().lower())
+    if normalized is None:
+        supported = ", ".join(sorted(_MODEL_DTYPE_ALIASES))
+        raise ValueError(f"unsupported model dtype {requested!r}; expected one of: {supported}")
+    if normalized == "bfloat16" and device.type == "cuda" and not torch.cuda.is_bf16_supported():
+        raise RuntimeError("bfloat16 was requested but the selected CUDA device lacks BF16 support")
+    resolved = "auto" if normalized == "auto" else getattr(torch, normalized)
+    return normalized, resolved
+
+
+def _loaded_model_dtype(model: Any) -> str:
+    dtypes = {
+        str(parameter.dtype).removeprefix("torch.")
+        for parameter in model.parameters()
+        if parameter.is_floating_point()
+    }
+    if len(dtypes) != 1:
+        raise RuntimeError(f"generator must use one floating dtype, observed {sorted(dtypes)}")
+    return next(iter(dtypes))
+
+
 def set_deterministic(seed: int) -> None:
     torch = _torch()
     random.seed(seed)
@@ -30,7 +64,7 @@ def set_deterministic(seed: int) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-    torch.use_deterministic_algorithms(True, warn_only=True)
+    torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False
 
 
@@ -295,6 +329,8 @@ class CausalAnswerGenerator:
         device: str = "cuda:0",
         max_new_tokens: int = 32,
         seed: int = 0,
+        dtype: str = "auto",
+        attention_implementation: str = "eager",
     ) -> None:
         torch = _torch()
         try:
@@ -305,6 +341,8 @@ class CausalAnswerGenerator:
         self.device = torch.device(device)
         self.max_new_tokens = max_new_tokens
         self.seed = seed
+        self.requested_dtype, torch_dtype = _resolve_model_dtype(torch, dtype, self.device)
+        self.attention_implementation = attention_implementation
         set_deterministic(seed)
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_path, local_files_only=True, use_fast=True
@@ -315,13 +353,28 @@ class CausalAnswerGenerator:
             AutoModelForCausalLM.from_pretrained(
                 self.model_path,
                 local_files_only=True,
-                torch_dtype=torch.float16 if self.device.type == "cuda" else torch.float32,
-                attn_implementation="eager",
+                torch_dtype=torch_dtype,
+                attn_implementation=self.attention_implementation,
                 low_cpu_mem_usage=True,
             )
             .eval()
             .to(self.device)
         )
+        self.model_dtype = _loaded_model_dtype(self.model)
+        if self.requested_dtype != "auto" and self.model_dtype != self.requested_dtype:
+            raise RuntimeError(
+                f"generator dtype mismatch: requested {self.requested_dtype}, "
+                f"loaded {self.model_dtype}"
+            )
+
+    def precision_metadata(self) -> dict[str, str]:
+        return {
+            "requested_dtype": self.requested_dtype,
+            "loaded_dtype": self.model_dtype,
+            "attention_implementation": self.attention_implementation,
+            "deterministic_algorithms": "strict",
+            "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"],
+        }
 
     def build_prompt(self, query: str, ordered_chunks: Sequence[tuple[str, str]]) -> PromptLayout:
         parts = [
