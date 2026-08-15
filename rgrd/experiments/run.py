@@ -19,6 +19,7 @@ from rgrd.pipeline.state import GateDecision, PhaseRecord, RunState, StateStore
 from rgrd.provenance import utc_now
 from rgrd.reporting import write_all, write_pipeline_report
 from rgrd.experiments.resume import event_provenance
+from rgrd.experiments.scope import load_protocol_scope
 
 
 PHASES = (
@@ -61,6 +62,7 @@ class ExperimentRunner:
         self.preregistration = yaml.safe_load(
             (self.root / "configs/experiments/v0_preregistration.yaml").read_text(encoding="utf-8")
         )
+        self.scope = load_protocol_scope(self.root)
         self.revisions = {
             role: str(model["revision"]) for role, model in self.pipeline["models"].items()
         }
@@ -457,6 +459,7 @@ class ExperimentRunner:
             "joint_environment": str(joint_environment),
             "tests": "passed",
             "models": "passed",
+            "protocol_scope": self.scope.metadata(),
         }
 
     def _phase_1(self) -> dict[str, Any]:
@@ -735,14 +738,13 @@ class ExperimentRunner:
         self._run_parallel(label, jobs)
 
     def _phase_5(self) -> dict[str, Any]:
-        msmarco_index = self._build_index("msmarco")
+        families = self.scope.family_datasets
+        index_stats = {
+            dataset: self._build_index(dataset)
+            for dataset in sorted({dataset for _, dataset in families})
+        }
         self._whitebox_full()
         output = self.root / "artifacts/events/e02_mechanism"
-        families = (
-            ("PoisonedRAG-B", "nq"),
-            ("PoisonedRAG-W", "nq"),
-            ("Phantom", "msmarco"),
-        )
         for family, dataset in families:
             safe = family.lower().replace("-", "_")
             self._worker_jobs(
@@ -764,11 +766,13 @@ class ExperimentRunner:
             )
         combined_input = self.root / "artifacts/events/e02_mechanism_combined"
         combined_input.mkdir(parents=True, exist_ok=True)
-        for path in output.rglob("*.jsonl"):
-            target = combined_input / f"{path.parent.name}-{path.name}"
-            if target.exists() or target.is_symlink():
-                target.unlink()
-            target.symlink_to(path.resolve())
+        for family, _ in families:
+            safe = family.lower().replace("-", "_")
+            for path in (output / safe).glob("*.jsonl"):
+                target = combined_input / f"{path.parent.name}-{path.name}"
+                if target.exists() or target.is_symlink():
+                    target.unlink()
+                target.symlink_to(path.resolve())
         self._run_command(
             "phase5-combine-mechanism",
             [
@@ -798,14 +802,18 @@ class ExperimentRunner:
         if not passed:
             raise GateFailure("gate_3", reasons)
         return {
-            "msmarco_index_chunks": int(msmarco_index["chunks"]),
+            "index_chunks": {
+                dataset: int(statistics["chunks"]) for dataset, statistics in index_stats.items()
+            },
             "mechanism_observations": result["observations"],
+            "protocol_scope": self.scope.metadata(),
         }
 
     def _phase_6(self) -> dict[str, Any]:
         mechanism = self.root / "artifacts/events/e02_mechanism_combined"
         output = self.root / "artifacts/events/e03_robustness"
-        for dataset in ("nq", "msmarco"):
+        active_datasets = sorted({dataset for _, dataset in self.scope.family_datasets})
+        for dataset in active_datasets:
             self._worker_jobs(
                 module="rgrd.experiments.robustness_worker",
                 output_dir=output / dataset,
@@ -823,11 +831,12 @@ class ExperimentRunner:
             )
         combined = self.root / "artifacts/events/e03_robustness_combined"
         combined.mkdir(parents=True, exist_ok=True)
-        for path in output.rglob("*.jsonl"):
-            target = combined / f"{path.parent.name}-{path.name}"
-            if target.exists() or target.is_symlink():
-                target.unlink()
-            target.symlink_to(path.resolve())
+        for dataset in active_datasets:
+            for path in (output / dataset).glob("*.jsonl"):
+                target = combined / f"{path.parent.name}-{path.name}"
+                if target.exists() or target.is_symlink():
+                    target.unlink()
+                target.symlink_to(path.resolve())
         self._run_command(
             "phase6-combine-robustness",
             [
@@ -918,11 +927,7 @@ class ExperimentRunner:
             start=200,
             limit=100,
         )
-        for family, dataset in (
-            ("PoisonedRAG-B", "nq"),
-            ("PoisonedRAG-W", "nq"),
-            ("Phantom", "msmarco"),
-        ):
+        for family, dataset in self.scope.family_datasets:
             self._detection_group(
                 label=family.lower().replace("-", "_"),
                 mode="attack",
@@ -934,11 +939,18 @@ class ExperimentRunner:
             )
         combined = self.root / "artifacts/events/e04_detection_combined"
         combined.mkdir(parents=True, exist_ok=True)
-        for path in (self.root / "artifacts/events/e04_detection").rglob("*.jsonl"):
-            target = combined / f"{path.parent.name}-{path.name}"
-            if target.exists() or target.is_symlink():
-                target.unlink()
-            target.symlink_to(path.resolve())
+        active_labels = [
+            "calibration",
+            "clean_test",
+            *(family.lower().replace("-", "_") for family in self.scope.active_attack_families),
+        ]
+        detection_root = self.root / "artifacts/events/e04_detection"
+        for label in active_labels:
+            for path in (detection_root / label).glob("*.jsonl"):
+                target = combined / f"{path.parent.name}-{path.name}"
+                if target.exists() or target.is_symlink():
+                    target.unlink()
+                target.symlink_to(path.resolve())
         self._run_command(
             "phase7-combine-detection",
             [

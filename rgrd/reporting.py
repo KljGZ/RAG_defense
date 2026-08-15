@@ -6,6 +6,7 @@ from typing import Any
 
 import yaml
 
+from rgrd.experiments.scope import load_protocol_scope
 from rgrd.provenance import sha256_file, utc_now
 
 
@@ -61,6 +62,7 @@ def _gate_line(name: str, value: Any) -> str:
 
 def write_pipeline_report(root: Path, state: dict[str, Any]) -> Path:
     pipeline = yaml.safe_load((root / "configs/pipeline/v0.yaml").read_text(encoding="utf-8"))
+    scope = load_protocol_scope(root)
     track = pipeline["track_b"]
     model_lock = root / "configs/models.lock.yaml"
     upstream_lock = root / "third_party/manifest.lock.yaml"
@@ -78,6 +80,14 @@ def write_pipeline_report(root: Path, state: dict[str, Any]) -> Path:
         f"- Generation: temperature={track['generator_temperature']}, do_sample={track['generator_do_sample']}, max_new_tokens={track['generator_max_new_tokens']}.",
         "- Decision point: after reranking and deterministic shadow generation, before answer release.",
         "- Runtime detector view excludes attack labels, target/gold answers, and all oracle ranges.",
+        "",
+        "## Post-hoc protocol scope amendment",
+        "",
+        f"- Protocol: `{scope.protocol_id}`; amendment: `{scope.amendment_id}`.",
+        f"- Prior failed run retained as evidence: `{scope.prior_failed_run}`.",
+        f"- Active modular attack families: {', '.join(scope.active_attack_families)}.",
+        f"- Excluded modular attack families: {', '.join(scope.excluded_attack_families)}.",
+        f"- Claim boundary: {scope.claim_boundary}",
         "",
         "## Pinned models",
         "",
@@ -149,6 +159,7 @@ def _conclusion(state: dict[str, Any], joint: dict[str, Any] | None) -> str:
 
 
 def write_final_report(root: Path, state: dict[str, Any]) -> Path:
+    scope = load_protocol_scope(root)
     audit_phase = (state.get("phases", {}).get("phase_1_attack_audit") or {}).get("status")
     audit = (
         _load_json(root / "artifacts/audit/reproduction_audit.json")
@@ -213,7 +224,10 @@ def write_final_report(root: Path, state: dict[str, Any]) -> Path:
         poison_status = audit.get("components", {}).get("poisonedrag", {}).get("status", "unknown")
         phantom_status = audit.get("components", {}).get("phantom", {}).get("status", "unknown")
         gate1 = audit.get("gate_1", {}).get("status", "unknown")
-        answer1 = f"PoisonedRAG={poison_status}, Phantom={phantom_status}, Gate 1={gate1}."
+        answer1 = (
+            f"PoisonedRAG={poison_status}; Gate 1={gate1}. "
+            f"Phantom was audited as {phantom_status} but excluded under {scope.amendment_id}."
+        )
     else:
         answer1 = "Not estimable: reproduction audit did not complete."
 
@@ -282,9 +296,14 @@ def write_final_report(root: Path, state: dict[str, Any]) -> Path:
         "",
         "RGRD is evaluated here as a structural anomaly screener at the post-reranking/pre-release decision point, not as a universal malicious-content classifier.",
         "",
+        "## Post-hoc scope warning",
+        "",
+        f"This run uses `{scope.amendment_id}` after `{scope.prior_failed_run}` failed Gate 1. Active attack families: {', '.join(scope.active_attack_families)}; excluded: {', '.join(scope.excluded_attack_families)}.",
+        f"Claim boundary: {scope.claim_boundary}",
+        "",
         "## Eight required decisions",
         "",
-        f"1. **Are PoisonedRAG/Phantom reproductions credible?** {answer1}",
+        f"1. **Are the in-scope modular attack reproductions credible?** {answer1}",
         f"2. **Is the oracle anchor retrieval-dominant?** {answer2}",
         f"3. **Is the oracle payload generation-dominant?** {answer3}",
         f"4. **Is poison T_RG higher than matched clean?** {answer4}",
@@ -295,7 +314,7 @@ def write_final_report(root: Path, state: dict[str, Any]) -> Path:
         "",
         "## Gate discipline",
         "",
-        "No result from a phase after a failed gate is promoted as confirmatory. Missing values are reported as not estimable rather than imputed.",
+        "No result from a phase after a failed gate is promoted as confirmatory. Missing values are reported as not estimable rather than imputed. This post-hoc scope amendment is never represented as part of the original preregistration.",
     ]
     if stopped:
         lines.extend(["", "## Terminal reason", "", stop_reason])

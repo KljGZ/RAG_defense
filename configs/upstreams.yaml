@@ -2,6 +2,12 @@ schema_version: 1
 attack_root: /home/jkl/RAG_attack
 official_root: /home/jkl/RGRD_V0/third_party
 
+gate_1:
+  protocol_amendment_id: PA-001-exclude-phantom
+  required_components: [poisonedrag]
+  informational_components: [phantom]
+  reason: Phantom is retained in the audit record but excluded from gating and all downstream modular-attack claims.
+
 poisonedrag:
   local_root: /home/jkl/RAG_attack
   official_root: /home/jkl/RGRD_V0/third_party/PoisonedRAG

@@ -4,11 +4,22 @@ permutations: 10000
 bootstrap_replicates: 10000
 alpha: 0.05
 
+protocol:
+  id: rgrd-v0-poisonedrag-only-amendment-1
+  amendment_id: PA-001-exclude-phantom
+  prior_failed_run: rgrd-v0-20260814T190433Z
+  amendment_reason: User-directed scope narrowing after Gate 1 found no non-empty optimized Phantom s_gen span.
+  claim_boundary: Post-hoc PoisonedRAG-B/W-only evidence; no conclusion may be generalized to Phantom or all modular RAG attacks.
+  active_attack_families: [PoisonedRAG-B, PoisonedRAG-W]
+  excluded_attack_families: [Phantom]
+
 e00_audit:
   poisonedrag_b: 20
   poisonedrag_w: 20
   phantom_triggered: 20
   phantom_clean_or_untriggered: 20
+  required_components: [poisonedrag]
+  informational_components: [phantom]
 
 e01_determinism:
   dataset: nq
@@ -17,9 +28,9 @@ e01_determinism:
   attribution_pilot_queries: 5
 
 e02_oracle_mechanism:
-  poisonedrag_b_successes: 100
-  poisonedrag_w_successes: 100
-  phantom_successes: 50
+  family_success_quotas:
+    PoisonedRAG-B: 100
+    PoisonedRAG-W: 100
   require_same_final_chunk: true
   require_rerank_survival: true
   require_end_to_end_success: true
@@ -33,7 +44,9 @@ e03_intervention_robustness:
 e04_conformal:
   clean_calibration_nq: 200
   clean_test_nq: 100
-  attack_successes_per_family: 50
+  attack_success_quotas:
+    PoisonedRAG-B: 50
+    PoisonedRAG-W: 50
 
 e05_hard_benign:
   per_group: 100

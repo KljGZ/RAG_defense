@@ -23,8 +23,8 @@ If either effect mass is below a no-op noise floor, the role is unidentifiable a
 
 ## Gate discipline
 
-1. **Gate 1:** PoisonedRAG is at least functionally reproduced and Phantom exposes
-   independent retrieval/generation/command/trigger components.
+1. **Gate 1:** every attack component required by the active protocol scope is at
+   least functionally reproduced.
 2. **Gate 2:** a 20-query end-to-end run is deterministic, including Top-K, shadow
    answers, and source-to-chunk-to-token offsets.
 3. **Gate 3:** H1-H3 pass one-sided paired sign-flip tests after Holm correction and
@@ -32,6 +32,20 @@ If either effect mass is below a no-op noise floor, the role is unidentifiable a
 
 No later experiment may be promoted to a confirmatory result when its preceding gate
 fails. Failure reports remain first-class deliverables.
+
+## Post-hoc protocol amendment PA-001
+
+Run `rgrd-v0-20260814T190433Z` completed the PoisonedRAG 20-query smoke but stopped at
+Gate 1 because all audited Phantom runs had an empty optimized `s_gen` span. At the
+user's direction, `PA-001-exclude-phantom` narrows subsequent runs to
+`PoisonedRAG-B` and `PoisonedRAG-W` only. Phantom remains visible in the audit as
+informational evidence but does not gate or enter mechanism, robustness, or detector
+statistics.
+
+This is a post-hoc scope reduction, not part of the original preregistration. Results
+under PA-001 cannot be generalized to Phantom or to all modular RAG attacks. The
+active families and their quotas are machine-validated from
+`configs/experiments/v0_preregistration.yaml`.
 
 ## Safety and provenance
 

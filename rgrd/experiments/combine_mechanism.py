@@ -8,13 +8,13 @@ import pandas as pd
 
 from rgrd.evaluation import MechanismObservation, run_mechanism_tests, write_mechanism_outputs
 from rgrd.experiments.resume import project_provenance, validate_rows_provenance
-
-
-REQUIRED = {"PoisonedRAG-B": 100, "PoisonedRAG-W": 100, "Phantom": 50}
+from rgrd.experiments.scope import load_protocol_scope
 
 
 def combine(input_dir: Path, root: Path, seed: int) -> dict[str, object]:
     provenance = project_provenance(root)
+    scope = load_protocol_scope(root)
+    required_quotas = scope.mechanism_quotas
     rows: list[dict[str, object]] = []
     seen: set[str] = set()
     for path in sorted(input_dir.glob("*.jsonl")):
@@ -23,6 +23,8 @@ def combine(input_dir: Path, root: Path, seed: int) -> dict[str, object]:
                 if not line.strip():
                     continue
                 value = json.loads(line)
+                if str(value["family"]) not in required_quotas:
+                    continue
                 sample_id = str(value["sample_id"])
                 if sample_id not in seen:
                     rows.append(value)
@@ -30,18 +32,19 @@ def combine(input_dir: Path, root: Path, seed: int) -> dict[str, object]:
     validate_rows_provenance(rows, provenance)
     selected: list[dict[str, object]] = []
     counts: dict[str, int] = {}
-    for family, required in REQUIRED.items():
+    for family, required in required_quotas.items():
         family_rows = [row for row in rows if row["family"] == family]
         counts[family] = len(family_rows)
         selected.extend(family_rows[:required])
     missing = {
         family: {"required": required, "available": counts.get(family, 0)}
-        for family, required in REQUIRED.items()
+        for family, required in required_quotas.items()
         if counts.get(family, 0) < required
     }
     if missing:
         failure = {
             **provenance,
+            "protocol_scope": scope.metadata(),
             "gate_3": {
                 "passed": False,
                 "reason": "successful co-chunk/reranked/end-to-end event quota not met",
@@ -85,7 +88,12 @@ def combine(input_dir: Path, root: Path, seed: int) -> dict[str, object]:
         seed=seed,
     )
     result.update(provenance)
-    result["quota"] = {"required": REQUIRED, "available": counts, "selected": REQUIRED}
+    result["protocol_scope"] = scope.metadata()
+    result["quota"] = {
+        "required": required_quotas,
+        "available": counts,
+        "selected": required_quotas,
+    }
     write_mechanism_outputs(
         result,
         root / "artifacts/statistics/mechanism_tests.json",

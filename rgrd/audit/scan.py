@@ -430,6 +430,41 @@ class ComponentAudit:
     evidence: dict[str, Any]
 
 
+def _gate_1_decision(
+    components: dict[str, ComponentAudit], gate_config: dict[str, Any] | None
+) -> dict[str, Any]:
+    settings = gate_config or {}
+    required = tuple(
+        str(value) for value in settings.get("required_components", ("poisonedrag", "phantom"))
+    )
+    informational = tuple(str(value) for value in settings.get("informational_components", ()))
+    if not required:
+        raise ValueError("Gate 1 must require at least one reproduction component")
+    if len(required) != len(set(required)) or len(informational) != len(set(informational)):
+        raise ValueError("Gate 1 component lists contain duplicates")
+    if set(required) & set(informational):
+        raise ValueError("Gate 1 required and informational components overlap")
+    unknown = (set(required) | set(informational)) - set(components)
+    if unknown:
+        raise ValueError(f"unknown Gate 1 components: {sorted(unknown)}")
+    passing = {AuditStatus.PASS_EXACT.value, AuditStatus.PASS_FUNCTIONAL.value}
+    gate_pass = all(components[name].status in passing for name in required)
+    reasons = [f"{name} status is {components[name].status}" for name in required]
+    reasons.extend(
+        f"{name} audited as {components[name].status} but is informational-only under "
+        f"{settings.get('protocol_amendment_id', 'the active scope')}"
+        for name in informational
+    )
+    return {
+        "status": "PASS" if gate_pass else "FAIL",
+        "required_components": list(required),
+        "informational_components": list(informational),
+        "protocol_amendment_id": settings.get("protocol_amendment_id"),
+        "scope_reason": settings.get("reason"),
+        "reasons": reasons,
+    }
+
+
 def _audit_poisonedrag(config: dict[str, Any]) -> tuple[ComponentAudit, dict[str, Any]]:
     section = config["poisonedrag"]
     local_root = Path(section["local_root"])
@@ -520,6 +555,8 @@ def _markdown_report(report: dict[str, Any]) -> str:
     poison = report["components"]["poisonedrag"]
     phantom = report["components"]["phantom"]
     gate = report["gate_1"]
+    required = ", ".join(gate.get("required_components", [])) or "not declared"
+    informational = ", ".join(gate.get("informational_components", [])) or "none"
     return f"""# RGRD-V0 Reproduction Audit
 
 Captured: `{report['captured_at']}`
@@ -529,6 +566,9 @@ Captured: `{report['captured_at']}`
 - PoisonedRAG: **{poison['status']}**
 - Phantom: **{phantom['status']}**
 - Gate 1: **{gate['status']}**
+- Required components: **{required}**
+- Informational-only components: **{informational}**
+- Protocol amendment: **{gate.get('protocol_amendment_id') or 'none'}**
 
 ## PoisonedRAG
 
@@ -547,6 +587,8 @@ Runs with a non-empty optimized generation span: `{phantom['evidence']['componen
 ## Gate 1 rationale
 
 {os.linesep.join(f'- {reason}' for reason in gate['reasons'])}
+
+Scope note: {gate.get('scope_reason') or 'No scope amendment was declared.'}
 
 This audit is read-only. `PASS_FUNCTIONAL` does not assert numerical identity with a
 paper and does not authorize later stages unless Gate 1 is explicitly recorded as pass.
@@ -570,22 +612,12 @@ def run_audit(root: Path, upstream_manifest: Path, output: Path) -> dict[str, An
     environment = _environment_snapshot(config)
     poisonedrag, static = _audit_poisonedrag(config)
     phantom = _audit_phantom(config)
-    passing = {AuditStatus.PASS_EXACT.value, AuditStatus.PASS_FUNCTIONAL.value}
-    gate_pass = poisonedrag.status in passing and phantom.status in passing
-    gate = {
-        "status": "PASS" if gate_pass else "FAIL",
-        "reasons": [
-            f"PoisonedRAG status is {poisonedrag.status}",
-            f"Phantom status is {phantom.status}",
-        ],
-    }
+    components = {"poisonedrag": poisonedrag, "phantom": phantom}
+    gate = _gate_1_decision(components, config.get("gate_1"))
     report = {
         "schema_version": 1,
         "captured_at": datetime.now(timezone.utc).isoformat(),
-        "components": {
-            "poisonedrag": asdict(poisonedrag),
-            "phantom": asdict(phantom),
-        },
+        "components": {name: asdict(component) for name, component in components.items()},
         "gate_1": gate,
     }
     _json_dump(output / "inventory.json", inventory)

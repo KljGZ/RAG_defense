@@ -19,12 +19,10 @@ from rgrd.ingestion import tokenize_with_offsets
 from rgrd.intervention import build_span_views
 from rgrd.schema import CharRange
 from rgrd.experiments.resume import event_provenance, prepare_jsonl_resume
+from rgrd.experiments.scope import load_protocol_scope
 
 
-QUOTAS = {"PoisonedRAG-B": 100, "PoisonedRAG-W": 100, "Phantom": 50}
-
-
-def _selected_rows(input_dir: Path) -> list[dict[str, object]]:
+def _selected_rows(input_dir: Path, quotas: dict[str, int]) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     seen: set[str] = set()
     for path in sorted(input_dir.glob("*.jsonl")):
@@ -34,19 +32,23 @@ def _selected_rows(input_dir: Path) -> list[dict[str, object]]:
                 rows.append(row)
                 seen.add(row["sample_id"])
     selected: list[dict[str, object]] = []
-    for family, quota in QUOTAS.items():
+    for family, quota in quotas.items():
         selected.extend([row for row in rows if row["family"] == family][:quota])
     selected.sort(key=lambda row: hashlib.sha256(str(row["sample_id"]).encode()).hexdigest())
     count = max(1, round(len(selected) * 0.10))
     return selected[:count]
 
 
-def _samples(root: Path, attack_root: Path):
-    values = [
-        *load_poisonedrag_blackbox(attack_root / "results/query_results/main"),
-        *load_poisonedrag_whitebox(root / "artifacts/attacks/poisonedrag_w_nq100.json"),
-        *load_phantom_samples(attack_root / "phantom-results"),
-    ]
+def _samples(root: Path, attack_root: Path, active_families: tuple[str, ...]):
+    values = []
+    if "PoisonedRAG-B" in active_families:
+        values.extend(load_poisonedrag_blackbox(attack_root / "results/query_results/main"))
+    if "PoisonedRAG-W" in active_families:
+        values.extend(
+            load_poisonedrag_whitebox(root / "artifacts/attacks/poisonedrag_w_nq100.json")
+        )
+    if "Phantom" in active_families:
+        values.extend(load_phantom_samples(attack_root / "phantom-results"))
     return {sample.sample_id: sample for sample in values}
 
 
@@ -143,9 +145,10 @@ def _donor_is_long_enough(pipeline, text: str, required: tuple[int, int, int]) -
 
 def run(args: argparse.Namespace) -> dict[str, int]:
     root = args.root.resolve()
-    rows = _selected_rows(args.mechanism_input)
+    scope = load_protocol_scope(root)
+    rows = _selected_rows(args.mechanism_input, scope.mechanism_quotas)
     rows = [row for index, row in enumerate(rows) if index % args.shards == args.shard_id]
-    samples = _samples(root, args.attack_root)
+    samples = _samples(root, args.attack_root, scope.active_attack_families)
     if args.dataset:
         rows = [row for row in rows if samples[str(row["sample_id"])].dataset == args.dataset]
     configs = yaml.safe_load((root / "configs/datasets.yaml").read_text(encoding="utf-8"))[

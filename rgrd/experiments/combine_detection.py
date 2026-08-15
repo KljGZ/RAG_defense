@@ -6,6 +6,7 @@ from pathlib import Path
 
 from rgrd.evaluation import ScoredQuery, evaluate_conformal_detector
 from rgrd.experiments.resume import project_provenance, validate_rows_provenance
+from rgrd.experiments.scope import load_protocol_scope
 
 
 def _rows(input_dir: Path, partition: str) -> list[dict[str, object]]:
@@ -26,15 +27,20 @@ def _rows(input_dir: Path, partition: str) -> list[dict[str, object]]:
 
 def combine(root: Path, input_dir: Path) -> dict[str, object]:
     provenance = project_provenance(root)
+    scope = load_protocol_scope(root)
     calibration_rows = _rows(input_dir, "calibration")
     clean_rows = _rows(input_dir, "clean_test")
-    attack_rows = _rows(input_dir, "attack_test")
+    attack_rows = [
+        row
+        for row in _rows(input_dir, "attack_test")
+        if str(row["family"]) in scope.detection_quotas
+    ]
     validate_rows_provenance(calibration_rows + clean_rows + attack_rows, provenance)
     family_counts: dict[str, int] = {}
     for row in attack_rows:
         family = str(row["family"])
         family_counts[family] = family_counts.get(family, 0) + 1
-    required_families = {"PoisonedRAG-B": 50, "PoisonedRAG-W": 50, "Phantom": 50}
+    required_families = scope.detection_quotas
     shortages = {
         **({"calibration": [200, len(calibration_rows)]} if len(calibration_rows) < 200 else {}),
         **({"clean_test": [100, len(clean_rows)]} if len(clean_rows) < 100 else {}),
@@ -68,6 +74,7 @@ def combine(root: Path, input_dir: Path) -> dict[str, object]:
         )
     result = evaluate_conformal_detector(calibration, clean, attacks, alpha=0.05)
     result.update(provenance)
+    result["protocol_scope"] = scope.metadata()
     statistics_path = root / "artifacts/statistics/detection.json"
     statistics_path.parent.mkdir(parents=True, exist_ok=True)
     statistics_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")

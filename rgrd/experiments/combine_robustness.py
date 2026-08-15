@@ -6,10 +6,12 @@ from pathlib import Path
 
 from rgrd.evaluation import DirectionComparison, evaluate_direction_stability
 from rgrd.experiments.resume import project_provenance, validate_rows_provenance
+from rgrd.experiments.scope import load_protocol_scope
 
 
 def combine(root: Path, input_dir: Path) -> dict[str, object]:
     provenance = project_provenance(root)
+    scope = load_protocol_scope(root)
     rows = {}
     for path in input_dir.glob("*.jsonl"):
         for line in path.read_text(encoding="utf-8").splitlines():
@@ -31,6 +33,7 @@ def combine(root: Path, input_dir: Path) -> dict[str, object]:
         comparisons, minimum_agreement=0.80, minimum_ci_lower=0.70
     )
     result.update(provenance)
+    result["protocol_scope"] = scope.metadata()
     output = root / "artifacts/statistics/intervention_robustness.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
