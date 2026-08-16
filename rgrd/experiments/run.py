@@ -9,15 +9,21 @@ import subprocess
 import sys
 import time
 import traceback
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, TextIO
 
 import yaml
 
 from rgrd.pipeline.state import GateDecision, PhaseRecord, RunState, StateStore
 from rgrd.provenance import utc_now
 from rgrd.reporting import write_all, write_pipeline_report
+from rgrd.experiments.gpu_admission import (
+    log_segment_has_cuda_oom,
+    query_gpu_memory,
+    rank_eligible_gpus,
+)
 from rgrd.experiments.resume import event_provenance
 from rgrd.experiments.scope import load_protocol_scope
 
@@ -43,6 +49,28 @@ class GateFailure(RuntimeError):
         super().__init__(f"{gate} failed: {'; '.join(self.reasons)}")
 
 
+@dataclass(frozen=True)
+class ScheduledGpuJob:
+    name: str
+    command: list[str | Path]
+    environment: dict[str, str] | None = None
+    cwd: Path | None = None
+    allowed: tuple[int, ...] = (0,)
+
+
+@dataclass
+class RunningGpuJob:
+    job: ScheduledGpuJob
+    process: subprocess.Popen[str]
+    log: TextIO
+    log_path: Path
+    log_start_offset: int
+    physical_gpu: int
+    total_mib: int
+    free_at_launch_mib: int
+    attempt: int
+
+
 class ExperimentRunner:
     def __init__(self, arguments: argparse.Namespace):
         self.root = arguments.root.resolve()
@@ -56,6 +84,30 @@ class ExperimentRunner:
         self.pipeline = yaml.safe_load(
             (self.root / "configs/pipeline/v0.yaml").read_text(encoding="utf-8")
         )
+        gpu_admission = self.pipeline.get("runtime", {}).get("gpu_admission", {})
+        self.gpu_full_min_free_mib = int(
+            gpu_admission.get("full_model_min_free_mib", 19000)
+        )
+        self.gpu_index_min_free_mib = int(gpu_admission.get("index_min_free_mib", 2048))
+        self.gpu_admission_poll_seconds = int(
+            gpu_admission.get("poll_seconds", self.poll_seconds)
+        )
+        self.gpu_oom_retry_limit = int(gpu_admission.get("oom_retry_limit", 8))
+        self.gpu_oom_retry_cooldown_seconds = int(
+            gpu_admission.get("oom_retry_cooldown_seconds", 120)
+        )
+        self.gpu_oom_retry_headroom_mib = int(
+            gpu_admission.get("oom_retry_headroom_mib", 1024)
+        )
+        positive_values = {
+            "full_model_min_free_mib": self.gpu_full_min_free_mib,
+            "index_min_free_mib": self.gpu_index_min_free_mib,
+            "poll_seconds": self.gpu_admission_poll_seconds,
+            "oom_retry_headroom_mib": self.gpu_oom_retry_headroom_mib,
+        }
+        invalid = [name for name, value in positive_values.items() if value <= 0]
+        if invalid or self.gpu_oom_retry_limit < 0 or self.gpu_oom_retry_cooldown_seconds < 0:
+            raise ValueError(f"invalid GPU admission configuration: {invalid}")
         self.datasets = yaml.safe_load(
             (self.root / "configs/datasets.yaml").read_text(encoding="utf-8")
         )["datasets"]
@@ -264,6 +316,222 @@ class ExperimentRunner:
                 log.write(f"[{utc_now()}] EXIT {process.poll()}\n")
                 log.close()
 
+    def _run_gpu_queue(
+        self,
+        label: str,
+        jobs: list[ScheduledGpuJob],
+        *,
+        minimum_free_mib: int,
+    ) -> dict[str, int]:
+        """Run GPU jobs only when admission headroom is available.
+
+        Shards are independent of physical GPU indices. A CUDA OOM retries only the
+        affected shard, with additional headroom and a temporary GPU quarantine.
+        """
+
+        if not jobs:
+            return {}
+        names = [job.name for job in jobs]
+        if len(names) != len(set(names)):
+            raise ValueError(f"GPU queue {label} has duplicate job names")
+        pending = list(jobs)
+        running: dict[str, RunningGpuJob] = {}
+        completed: dict[str, int] = {}
+        retries = {job.name: 0 for job in jobs}
+        required_free = {job.name: minimum_free_mib for job in jobs}
+        quarantined_until: dict[int, float] = {}
+        single_job = len(jobs) == 1
+
+        try:
+            while pending or running:
+                now = time.monotonic()
+                for name, active in list(running.items()):
+                    code = active.process.poll()
+                    if code is None:
+                        continue
+                    code = int(code)
+                    active.log.write(f"[{utc_now()}] EXIT {code}\n")
+                    active.log.flush()
+                    is_oom = code != 0 and log_segment_has_cuda_oom(
+                        active.log_path, active.log_start_offset
+                    )
+                    active.log.close()
+                    del running[name]
+                    if is_oom and retries[name] < self.gpu_oom_retry_limit:
+                        retries[name] += 1
+                        maximum_safe_threshold = max(minimum_free_mib, active.total_mib - 512)
+                        required_free[name] = min(
+                            minimum_free_mib
+                            + retries[name] * self.gpu_oom_retry_headroom_mib,
+                            maximum_safe_threshold,
+                        )
+                        quarantined_until[active.physical_gpu] = (
+                            now + self.gpu_oom_retry_cooldown_seconds
+                        )
+                        pending.append(active.job)
+                        self._progress(
+                            active_group=label,
+                            last_oom_retry={
+                                "job": name,
+                                "physical_gpu": active.physical_gpu,
+                                "attempt": active.attempt,
+                                "retry": retries[name],
+                                "next_min_free_mib": required_free[name],
+                                "log": str(active.log_path),
+                                "at": utc_now(),
+                            },
+                            heartbeat=utc_now(),
+                        )
+                    elif code in active.job.allowed and not is_oom:
+                        completed[name] = code
+                    else:
+                        failure_kind = "CUDA OOM retry limit exhausted" if is_oom else "failure"
+                        raise RuntimeError(
+                            f"GPU queue {label} job {name} {failure_kind} with exit {code}; "
+                            f"see {active.log_path}"
+                        )
+
+                memory = query_gpu_memory()
+                if minimum_free_mib > max(value.total_mib for value in memory.values()):
+                    raise RuntimeError(
+                        f"GPU queue {label} requires {minimum_free_mib} MiB free, exceeding "
+                        "all installed GPU capacities"
+                    )
+                quarantined = {
+                    index for index, until in quarantined_until.items() if until > now
+                }
+                busy = {active.physical_gpu for active in running.values()}
+
+                while pending:
+                    selected_job_index: int | None = None
+                    selected_gpu: int | None = None
+                    for job_index, job in enumerate(pending):
+                        candidates = rank_eligible_gpus(
+                            memory,
+                            minimum_free_mib=required_free[job.name],
+                            busy=busy,
+                            quarantined=quarantined,
+                        )
+                        if candidates:
+                            selected_job_index = job_index
+                            selected_gpu = candidates[0]
+                            break
+                    if selected_job_index is None or selected_gpu is None:
+                        break
+                    job = pending.pop(selected_job_index)
+                    gpu_memory = memory[selected_gpu]
+                    log_path = self._log_file(label if single_job else f"{label}-{job.name}")
+                    log = log_path.open("a", encoding="utf-8")
+                    attempt = retries[job.name] + 1
+                    log.write(
+                        f"\n[{utc_now()}] GPU_ADMISSION physical_gpu={selected_gpu} "
+                        f"free_mib={gpu_memory.free_mib} required_mib={required_free[job.name]} "
+                        f"attempt={attempt}\n"
+                    )
+                    log.write(
+                        f"[{utc_now()}] COMMAND "
+                        f"{json.dumps([str(item) for item in job.command])}\n"
+                    )
+                    log.flush()
+                    log_start_offset = log.tell()
+                    environment = self.base_environment.copy()
+                    if job.environment:
+                        environment.update(job.environment)
+                    environment["CUDA_VISIBLE_DEVICES"] = str(selected_gpu)
+                    process = subprocess.Popen(
+                        [str(item) for item in job.command],
+                        cwd=job.cwd or self.root,
+                        env=environment,
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                    )
+                    running[job.name] = RunningGpuJob(
+                        job=job,
+                        process=process,
+                        log=log,
+                        log_path=log_path,
+                        log_start_offset=log_start_offset,
+                        physical_gpu=selected_gpu,
+                        total_mib=gpu_memory.total_mib,
+                        free_at_launch_mib=gpu_memory.free_mib,
+                        attempt=attempt,
+                    )
+                    busy.add(selected_gpu)
+
+                self._progress(
+                    active_group=label,
+                    gpu_admission={
+                        "base_min_free_mib": minimum_free_mib,
+                        "pending": [job.name for job in pending],
+                        "running": {
+                            name: {
+                                "pid": active.process.pid,
+                                "physical_gpu": active.physical_gpu,
+                                "attempt": active.attempt,
+                                "free_at_launch_mib": active.free_at_launch_mib,
+                            }
+                            for name, active in sorted(running.items())
+                        },
+                        "completed": sorted(completed),
+                        "oom_retries": retries,
+                        "required_free_mib": required_free,
+                        "gpu_memory_mib": {
+                            str(index): {
+                                "total": value.total_mib,
+                                "free": value.free_mib,
+                            }
+                            for index, value in sorted(memory.items())
+                        },
+                        "quarantined_gpus": sorted(quarantined),
+                    },
+                    heartbeat=utc_now(),
+                )
+                if pending or running:
+                    time.sleep(self.gpu_admission_poll_seconds)
+        except BaseException:
+            for active in running.values():
+                if active.process.poll() is None:
+                    active.process.send_signal(signal.SIGTERM)
+            for active in running.values():
+                if active.process.poll() is None:
+                    try:
+                        active.process.wait(timeout=30)
+                    except subprocess.TimeoutExpired:
+                        active.process.kill()
+            raise
+        finally:
+            for active in running.values():
+                if not active.log.closed:
+                    active.log.write(f"[{utc_now()}] EXIT {active.process.poll()}\n")
+                    active.log.close()
+        return completed
+
+    def _run_gpu_command(
+        self,
+        label: str,
+        command: list[str | Path],
+        *,
+        environment: dict[str, str] | None = None,
+        cwd: Path | None = None,
+        allowed: tuple[int, ...] = (0,),
+        minimum_free_mib: int | None = None,
+    ) -> int:
+        results = self._run_gpu_queue(
+            label,
+            [
+                ScheduledGpuJob(
+                    name="single",
+                    command=command,
+                    environment=environment,
+                    cwd=cwd,
+                    allowed=allowed,
+                )
+            ],
+            minimum_free_mib=minimum_free_mib or self.gpu_full_min_free_mib,
+        )
+        return results["single"]
+
     def _model_revision_arguments(self) -> list[str]:
         arguments: list[str] = []
         for role, revision in sorted(self.revisions.items()):
@@ -440,7 +708,7 @@ class ExperimentRunner:
             "phase0-pytest",
             [self.python, "-m", "pytest", "-q"],
         )
-        self._run_command(
+        self._run_gpu_command(
             "phase0-model-preflight",
             [
                 self.python,
@@ -451,7 +719,6 @@ class ExperimentRunner:
                 "--device",
                 "cuda:0",
             ],
-            environment={"CUDA_VISIBLE_DEVICES": "0"},
         )
         return {
             **locks,
@@ -464,7 +731,7 @@ class ExperimentRunner:
 
     def _phase_1(self) -> dict[str, Any]:
         whitebox = self.root / "artifacts/attacks/poisonedrag_w_nq100.json"
-        self._run_command(
+        self._run_gpu_command(
             "phase1-poisonedrag-whitebox-smoke",
             [
                 self.python,
@@ -485,7 +752,6 @@ class ExperimentRunner:
                 "--seed",
                 "12",
             ],
-            environment={"CUDA_VISIBLE_DEVICES": "0"},
         )
         audit_dir = self.root / "artifacts/audit"
         self._run_command(
@@ -540,12 +806,12 @@ class ExperimentRunner:
                 and Path(manifest["database_path"]).is_file()
             ):
                 return manifest
-        jobs = []
+        jobs: list[ScheduledGpuJob] = []
         for shard_id in range(8):
             jobs.append(
-                (
-                    f"gpu{shard_id}",
-                    [
+                ScheduledGpuJob(
+                    name=f"shard-{shard_id:02d}",
+                    command=[
                         self.python,
                         "-m",
                         "rgrd.indexing.exact",
@@ -565,11 +831,14 @@ class ExperimentRunner:
                         "--device",
                         "cuda:0",
                     ],
-                    {"CUDA_VISIBLE_DEVICES": str(shard_id)},
-                    self.root,
+                    cwd=self.root,
                 )
             )
-        self._run_parallel(f"index-{dataset}", jobs)
+        self._run_gpu_queue(
+            f"index-{dataset}",
+            jobs,
+            minimum_free_mib=self.gpu_index_min_free_mib,
+        )
         self._progress(index_dataset=dataset, index_progress=self._index_progress(output))
         self._run_command(
             f"index-{dataset}-merge",
@@ -595,7 +864,7 @@ class ExperimentRunner:
             "phase2-pytest",
             [self.python, "-m", "pytest", "-q"],
         )
-        self._run_command(
+        self._run_gpu_command(
             "phase2-determinism",
             [
                 self.python,
@@ -613,7 +882,6 @@ class ExperimentRunner:
                 "--detector-commit",
                 self.detector_commit,
             ],
-            environment={"CUDA_VISIBLE_DEVICES": "0"},
             allowed=(0, 2),
         )
         path = self.root / "artifacts/statistics/gate2_determinism.json"
@@ -626,7 +894,7 @@ class ExperimentRunner:
         return {"nq_index_chunks": int(index["chunks"]), "determinism_queries": 20}
 
     def _phase_3(self) -> dict[str, Any]:
-        self._run_command(
+        self._run_gpu_command(
             "phase3-noop-noise",
             [
                 self.python,
@@ -644,7 +912,6 @@ class ExperimentRunner:
                 "--detector-commit",
                 self.detector_commit,
             ],
-            environment={"CUDA_VISIBLE_DEVICES": "0"},
         )
         result = json.loads(
             (self.root / "artifacts/statistics/noop_noise_floor.json").read_text(encoding="utf-8")
@@ -657,7 +924,7 @@ class ExperimentRunner:
 
     def _phase_4(self) -> dict[str, Any]:
         count = int(self.preregistration["e01_determinism"]["attribution_pilot_queries"])
-        self._run_command(
+        self._run_gpu_command(
             "phase4-attribution-pilot",
             [
                 self.python,
@@ -675,12 +942,11 @@ class ExperimentRunner:
                 "--detector-commit",
                 self.detector_commit,
             ],
-            environment={"CUDA_VISIBLE_DEVICES": "0"},
         )
         return {"pilot_queries": count, "runtime_view": "label-free"}
 
     def _whitebox_full(self) -> None:
-        self._run_command(
+        self._run_gpu_command(
             "phase5-poisonedrag-whitebox-100",
             [
                 self.python,
@@ -701,7 +967,6 @@ class ExperimentRunner:
                 "--seed",
                 "12",
             ],
-            environment={"CUDA_VISIBLE_DEVICES": "0"},
         )
 
     def _worker_jobs(
@@ -714,7 +979,7 @@ class ExperimentRunner:
         python: Path | None = None,
         cwd: Path | None = None,
     ) -> None:
-        jobs = []
+        jobs: list[ScheduledGpuJob] = []
         output_dir.mkdir(parents=True, exist_ok=True)
         for shard_id in range(8):
             command = [
@@ -734,8 +999,18 @@ class ExperimentRunner:
                 self.detector_commit,
                 *self._model_revision_arguments(),
             ]
-            jobs.append((f"gpu{shard_id}", command, {"CUDA_VISIBLE_DEVICES": str(shard_id)}, cwd))
-        self._run_parallel(label, jobs)
+            jobs.append(
+                ScheduledGpuJob(
+                    name=f"shard-{shard_id:02d}",
+                    command=command,
+                    cwd=cwd,
+                )
+            )
+        self._run_gpu_queue(
+            label,
+            jobs,
+            minimum_free_mib=self.gpu_full_min_free_mib,
+        )
 
     def _phase_5(self) -> dict[str, Any]:
         families = self.scope.family_datasets
@@ -1040,7 +1315,7 @@ class ExperimentRunner:
             raise FileNotFoundError(
                 f"separate Joint-GCG environment is absent: {self.joint_python}"
             )
-        self._run_command(
+        self._run_gpu_command(
             "phase9-joint-projection",
             [
                 self.joint_python,
@@ -1059,7 +1334,7 @@ class ExperimentRunner:
                 "--seed",
                 "42",
             ],
-            environment={"CUDA_VISIBLE_DEVICES": "0", "PYTHONPATH": str(self.root)},
+            environment={"PYTHONPATH": str(self.root)},
         )
         task_root = self.root / "artifacts/joint_gcg/tasks"
         self._run_command(
@@ -1080,7 +1355,7 @@ class ExperimentRunner:
             ],
         )
         logs = self.root / "artifacts/joint_gcg/official_logs"
-        jobs = []
+        jobs: list[ScheduledGpuJob] = []
         for shard_id in range(8):
             command: list[str | Path] = [
                 self.joint_python,
@@ -1113,17 +1388,18 @@ class ExperimentRunner:
                 str(config["tag_length"]),
             ]
             jobs.append(
-                (
-                    f"gpu{shard_id}",
-                    command,
-                    {
-                        "CUDA_VISIBLE_DEVICES": str(shard_id),
-                        "PYTHONPATH": str(self.root),
-                    },
-                    official,
+                ScheduledGpuJob(
+                    name=f"shard-{shard_id:02d}",
+                    command=command,
+                    environment={"PYTHONPATH": str(self.root)},
+                    cwd=official,
                 )
             )
-        self._run_parallel("joint-gcg-official", jobs)
+        self._run_gpu_queue(
+            "joint-gcg-official",
+            jobs,
+            minimum_free_mib=self.gpu_full_min_free_mib,
+        )
         collected = self.root / "artifacts/attacks/joint_gcg_nq50.jsonl"
         self._run_command(
             "phase9-collect-joint",

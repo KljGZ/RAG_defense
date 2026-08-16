@@ -105,6 +105,16 @@ The runner writes `artifacts/run_state.json` atomically. It stops at the first f
 gate, marks all later phases skipped, and still writes the required failure-aware
 reports. Read-only status inspection is:
 
+GPU-heavy commands use the admission policy in `configs/pipeline/v0.yaml` rather
+than binding shard *n* to physical GPU *n*. Full-model jobs start only when a card
+has at least 19,000 MiB free; otherwise the runner remains alive, records the live
+memory snapshot and pending queue in `run_state.json`, and refreshes its heartbeat.
+Only one RGRD worker is assigned to a physical GPU at a time. If an external
+allocation race still causes CUDA OOM, only that shard is requeued, its next
+headroom requirement is raised, and the affected card is temporarily quarantined.
+Non-OOM failures remain fail-fast. The runner never terminates or modifies unrelated
+GPU processes, and every physical assignment and retry is appended to the phase log.
+
 ```bash
 /mnt/data/jkl/conda-envs/rgrd-v0/bin/python -m rgrd.pipeline.monitor \
   --state /home/jkl/RGRD_V0/artifacts/run_state.json

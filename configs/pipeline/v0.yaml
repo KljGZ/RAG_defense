@@ -1,6 +1,15 @@
 schema_version: 1
 seed: 20260814
 
+runtime:
+  gpu_admission:
+    full_model_min_free_mib: 19000
+    index_min_free_mib: 2048
+    poll_seconds: 30
+    oom_retry_limit: 8
+    oom_retry_cooldown_seconds: 120
+    oom_retry_headroom_mib: 1024
+
 track_a:
   name: passage_as_chunk
   purpose: PoisonedRAG reproduction parity only
