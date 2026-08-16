@@ -65,7 +65,9 @@ def _load_rows(input_dir: Path) -> list[dict[str, Any]]:
                 row = json.loads(line)
                 sample_id = str(row["sample_id"])
                 if sample_id in seen:
-                    raise RuntimeError(f"duplicate V0.1 sample_id {sample_id} at {path}:{line_number}")
+                    raise RuntimeError(
+                        f"duplicate V0.1 sample_id {sample_id} at {path}:{line_number}"
+                    )
                 seen.add(sample_id)
                 rows.append(row)
     if not rows:
@@ -92,6 +94,8 @@ def _attrition(manifest: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str
         "anchor_payload_cochunk",
         "gold_aliases_valid",
         "target_distinct_from_gold",
+        "oracle_token_partitions_valid",
+        "donor_pairs_valid",
         "actual_retrieval_hit",
         "natural_end_to_end_success",
         "forced_context_success",
@@ -123,9 +127,7 @@ def _primary_test(
 ) -> dict[str, Any]:
     values = [float(row["primary_estimate"][field]) for row in rows]
     sign = exact_one_sided_sign_test(values)
-    interval = query_bootstrap_median_ci(
-        values, replicates=bootstrap_replicates, seed=seed
-    )
+    interval = query_bootstrap_median_ci(values, replicates=bootstrap_replicates, seed=seed)
     return {
         "n": len(values),
         "positive": sign.positive,
@@ -207,7 +209,9 @@ def _report(result: dict[str, Any]) -> str:
             f"| {family} | {value['loaded_samples']} | {value['unique_query_ids']} | "
             f"{value['canonical_samples']} | {checks['source_ranges_valid']} | "
             f"{checks['anchor_payload_cochunk']} | {checks['gold_aliases_valid']} | "
-            f"{checks['target_distinct_from_gold']} | {checks['mechanism_scores_finite']} |"
+            f"{checks['target_distinct_from_gold']} | "
+            f"{checks['oracle_token_partitions_valid']} | "
+            f"{checks['donor_pairs_valid']} | {checks['mechanism_scores_finite']} |"
         )
     association_rows = []
     for name, value in result["outcome_associations"].items():
@@ -250,8 +254,8 @@ positive clipping and separate normalization discard absolute generation scale.
 
 ## Attrition ledger
 
-| Family | Loaded samples | Unique queries | Canonical | Valid ranges | A/P co-chunk | Valid gold | Target distinct | Finite mechanism |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Family | Loaded samples | Unique queries | Canonical | Valid ranges | A/P co-chunk | Valid gold | Target distinct | Token partitions | 8 donor pairs | Finite mechanism |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 {chr(10).join(attrition_rows)}
 
 Canonicalization selected the lexicographically smallest `sample_id` per `query_id`
@@ -295,6 +299,8 @@ replace the primary mechanism tests.
 - Unit: one final chunk per independent query.
 - Context: clean Top-K with the poison fixed at zero-based index 1 for generation attribution.
 - Models: frozen Contriever, MiniLM cross-encoder, and Qwen2.5-7B-Instruct.
+- Token ownership: maximum character overlap, with boundary ties assigned in
+  deterministic A-then-P order; one model token can belong to at most one player.
 - Generator: explicit BF16, eager attention, strict deterministic algorithms, and
   `CUBLAS_WORKSPACE_CONFIG=:4096:8`.
 - GPU boundary: physical GPUs 4--7 only; physical GPUs 0--3 excluded.
@@ -317,14 +323,11 @@ def combine(
     config = yaml.safe_load(
         (root / "configs/experiments/v0_1_preregistration.yaml").read_text(encoding="utf-8")
     )
-    pipeline = yaml.safe_load(
-        (root / "configs/pipeline/v0_1.yaml").read_text(encoding="utf-8")
-    )
+    pipeline = yaml.safe_load((root / "configs/pipeline/v0_1.yaml").read_text(encoding="utf-8"))
     rows = _load_rows(input_dir)
     families = list(config["scope"]["active_attack_families"])
     manifest_values = {
-        family: json.loads(manifests[family].read_text(encoding="utf-8"))
-        for family in families
+        family: json.loads(manifests[family].read_text(encoding="utf-8")) for family in families
     }
     rows_by_family = {
         family: [row for row in rows if row["family"] == family] for family in families
@@ -351,15 +354,13 @@ def combine(
                 f"missing={missing[:10]}, extra={extra[:10]}"
             )
     attrition = {
-        family: _attrition(manifest_values[family], rows_by_family[family])
-        for family in families
+        family: _attrition(manifest_values[family], rows_by_family[family]) for family in families
     }
     identifiable = {
         family: [
             row
             for row in rows_by_family[family]
-            if row["status"] == "ELIGIBLE"
-            and bool(row["primary_estimate"]["role_identifiable"])
+            if row["status"] == "ELIGIBLE" and bool(row["primary_estimate"]["role_identifiable"])
         ]
         for family in families
     }
@@ -497,9 +498,7 @@ def combine(
             "minimum_queries_per_family": minimum,
         },
         "attrition": attrition,
-        "identifiable_queries": {
-            family: len(identifiable[family]) for family in families
-        },
+        "identifiable_queries": {family: len(identifiable[family]) for family in families},
         "outcome_strata": strata,
         "primary_tests": primary_tests,
         "mask_direction_robustness": {

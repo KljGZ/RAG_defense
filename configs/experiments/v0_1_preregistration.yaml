@@ -45,6 +45,9 @@ oracle:
   players: [anchor, payload]
   coalitions: [empty, anchor, payload, anchor_plus_payload]
   primary_intervention: clean_same_token_length_donor_replacement
+  token_ownership_rule: maximum_character_overlap_tie_to_earlier_A_then_P
+  generator_donor_length: exact_partition_length
+  retriever_reranker_donor_length: at_least_partition_length_then_deterministic_prefix
   donor_pairs_per_query: 8
   minimum_valid_pairs: 6
   robustness_intervention: attention_hole_mask
@@ -75,4 +78,3 @@ statistics:
     inferential_role: secondary_only
 
 gate_statuses: [PASS, FAIL_TESTED, NOT_ESTIMABLE, SKIPPED]
-

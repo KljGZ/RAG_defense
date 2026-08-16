@@ -79,9 +79,7 @@ def oracle_cochunk(
     if not candidates:
         raise ValueError("Oracle anchor and payload do not co-occur in one final chunk")
     chosen = sorted(candidates, key=lambda chunk: chunk.chunk_id)[0]
-    validate_disjoint_ranges(
-        chosen.text, chosen.anchor_ranges_chunk, chosen.payload_ranges_chunk
-    )
+    validate_disjoint_ranges(chosen.text, chosen.anchor_ranges_chunk, chosen.payload_ranges_chunk)
     return chosen, chunks
 
 
@@ -142,7 +140,11 @@ def prepare_query(
         sorted(candidates, key=lambda candidate: candidate.rerank_rank)[: pipeline.rerank_top_k]
     )
     poison_in_top = next(
-        (candidate for candidate in candidates if candidate.chunk.chunk_id == poison_chunk.chunk_id),
+        (
+            candidate
+            for candidate in candidates
+            if candidate.chunk.chunk_id == poison_chunk.chunk_id
+        ),
         None,
     )
     if poison_in_top is None:
@@ -240,17 +242,26 @@ def generation_margin(
     chunk_id: str | None = None,
     hidden_spans: Sequence[CharRange] | None = None,
     replacement_spans: Sequence[CharRange] | None = None,
-    replacement_texts: Sequence[str] | None = None,
+    replacement_texts: Sequence[str | None] | None = None,
+    partition_spans: Sequence[CharRange] | None = None,
+    partition_hidden: Sequence[bool] | None = None,
 ) -> tuple[float, float, float]:
-    if hidden_spans and replacement_spans:
-        raise ValueError("generation coalition cannot mask and replace simultaneously")
+    modes = sum(value is not None for value in (hidden_spans, replacement_spans, partition_spans))
+    if modes > 1:
+        raise ValueError("generation coalition must use exactly one intervention mode")
     if hidden_spans:
         kwargs = {"chunk_id": chunk_id, "hidden_spans": hidden_spans}
-    elif replacement_spans:
+    elif replacement_spans is not None:
         kwargs = {
             "chunk_id": chunk_id,
             "replacement_spans": replacement_spans,
             "replacement_texts": replacement_texts,
+        }
+    elif partition_spans is not None:
+        kwargs = {
+            "chunk_id": chunk_id,
+            "partition_spans": partition_spans,
+            "partition_hidden": partition_hidden,
         }
     else:
         kwargs = {}
@@ -265,17 +276,15 @@ def generation_margin(
 def donor_interventions(
     chunk: ChunkLineage,
     pair: DonorPair,
-) -> dict[str, tuple[list[CharRange], list[str]]]:
+) -> dict[str, tuple[list[CharRange], list[str | None]]]:
     anchor = [segment.text for segment in pair.anchor]
     payload = [segment.text for segment in pair.payload]
+    all_spans = [*chunk.anchor_ranges_chunk, *chunk.payload_ranges_chunk]
     return {
-        "empty": (
-            [*chunk.anchor_ranges_chunk, *chunk.payload_ranges_chunk],
-            [*anchor, *payload],
-        ),
-        "anchor": (list(chunk.payload_ranges_chunk), payload),
-        "payload": (list(chunk.anchor_ranges_chunk), anchor),
-        "both": ([], []),
+        "empty": (all_spans, [*anchor, *payload]),
+        "anchor": (all_spans, [None] * len(anchor) + payload),
+        "payload": (all_spans, anchor + [None] * len(payload)),
+        "both": (all_spans, [None] * len(all_spans)),
     }
 
 
@@ -283,11 +292,11 @@ def retrieval_values_for_interventions(
     pipeline: TrackBPipeline,
     prepared: PreparedQuery,
     query: str,
-    interventions: Mapping[str, tuple[Sequence[CharRange], Sequence[str]]],
+    interventions: Mapping[str, tuple[Sequence[CharRange], Sequence[str | None]]],
 ) -> dict[str, dict[str, float]]:
     result: dict[str, dict[str, float]] = {}
     for key, (spans, donor_texts) in interventions.items():
-        if spans:
+        if any(value is not None for value in donor_texts):
             embedding = pipeline.retriever.encode_replaced_ranges(
                 prepared.poison_chunk.text, spans, donor_texts
             )
@@ -315,17 +324,24 @@ def mask_retrieval_values(
     query: str,
 ) -> dict[str, dict[str, float]]:
     chunk = prepared.poison_chunk
+    all_spans = [*chunk.anchor_ranges_chunk, *chunk.payload_ranges_chunk]
+    anchor_count = len(chunk.anchor_ranges_chunk)
+    payload_count = len(chunk.payload_ranges_chunk)
     absent = {
-        "empty": [*chunk.anchor_ranges_chunk, *chunk.payload_ranges_chunk],
-        "anchor": list(chunk.payload_ranges_chunk),
-        "payload": list(chunk.anchor_ranges_chunk),
-        "both": [],
+        "empty": [True] * len(all_spans),
+        "anchor": [False] * anchor_count + [True] * payload_count,
+        "payload": [True] * anchor_count + [False] * payload_count,
+        "both": [False] * len(all_spans),
     }
     result: dict[str, dict[str, float]] = {}
-    for coalition, hidden in absent.items():
-        if hidden:
-            embedding = pipeline.retriever.encode_hidden_ranges(chunk.text, hidden)
-            rerank_score = pipeline.reranker.score_hidden_ranges(query, chunk.text, hidden)
+    for coalition, hidden_flags in absent.items():
+        if any(hidden_flags):
+            embedding = pipeline.retriever.encode_hidden_partition(
+                chunk.text, all_spans, hidden_flags
+            )
+            rerank_score = pipeline.reranker.score_hidden_partition(
+                query, chunk.text, all_spans, hidden_flags
+            )
             dense_score = pipeline.retriever.score(prepared.query_embedding, embedding)
         else:
             dense_score = prepared.poison_dense_score

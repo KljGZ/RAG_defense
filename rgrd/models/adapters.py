@@ -114,6 +114,42 @@ def _overlap_indices_many(
     return sorted(values)
 
 
+def _partition_overlap_indices(
+    offsets: Sequence[Sequence[int]],
+    spans: Sequence[CharRange],
+    *,
+    eligible: Iterable[int] | None = None,
+) -> tuple[tuple[int, ...], ...]:
+    """Assign each overlapping token to exactly one ordered character span.
+
+    Fast tokenizers can emit a boundary token that overlaps two adjacent Oracle
+    spans.  Treating that token as part of both players violates the two-player
+    coalition design.  We therefore assign a token to the span with the largest
+    character overlap; ties are resolved by the input order (A spans before P
+    spans in V0.1).  Tokens outside every span remain untouched.
+    """
+
+    if not spans:
+        raise ValueError("at least one intervention span is required")
+    allowed = None if eligible is None else set(eligible)
+    partitions: list[list[int]] = [[] for _ in spans]
+    for index, pair in enumerate(offsets):
+        start, end = int(pair[0]), int(pair[1])
+        if end <= start or (allowed is not None and index not in allowed):
+            continue
+        overlaps = [max(0, min(end, span.end) - max(start, span.start)) for span in spans]
+        maximum = max(overlaps)
+        if maximum > 0:
+            partitions[overlaps.index(maximum)].append(index)
+    missing = [index for index, values in enumerate(partitions) if not values]
+    if missing:
+        raise ValueError(
+            "Oracle spans did not map to distinct model-token partitions: "
+            f"missing ordered span indices {missing}"
+        )
+    return tuple(tuple(values) for values in partitions)
+
+
 def _replacement_ids(tokenizer: Any, donor_text: str, length: int) -> list[int]:
     encoded = tokenizer(donor_text, add_special_tokens=False, truncation=False)
     values = encoded["input_ids"]
@@ -215,6 +251,58 @@ class DenseRetriever:
             raise ValueError("intervention hid every retriever token")
         return self._forward(encoded)[0].cpu().numpy().astype(np.float32, copy=False)
 
+    def intervention_token_lengths(self, text: str, spans: Sequence[CharRange]) -> tuple[int, ...]:
+        encoded = self.tokenizer(
+            text,
+            padding=False,
+            truncation=True,
+            max_length=self.max_length,
+            return_offsets_mapping=True,
+        )
+        offsets = encoded["offset_mapping"]
+        if (
+            offsets
+            and isinstance(offsets[0], list)
+            and offsets[0]
+            and isinstance(offsets[0][0], list)
+        ):
+            offsets = offsets[0]
+        return tuple(len(values) for values in _partition_overlap_indices(offsets, spans))
+
+    def encode_hidden_partition(
+        self,
+        text: str,
+        spans: Sequence[CharRange],
+        hidden: Sequence[bool],
+    ) -> np.ndarray:
+        if len(spans) != len(hidden) or not spans:
+            raise ValueError("partition spans and hidden flags must have equal non-zero length")
+        encoded = self.tokenizer(
+            text,
+            padding=False,
+            truncation=True,
+            max_length=self.max_length,
+            return_offsets_mapping=True,
+            return_tensors="pt",
+        )
+        offsets = encoded.pop("offset_mapping")[0].tolist()
+        partitions = _partition_overlap_indices(offsets, spans)
+        indices = sorted(
+            index
+            for values, should_hide in zip(partitions, hidden, strict=True)
+            if should_hide
+            for index in values
+        )
+        if not indices:
+            return self._forward(encoded)[0].cpu().numpy().astype(np.float32, copy=False)
+        encoded["input_ids"] = encoded["input_ids"].clone()
+        encoded["attention_mask"] = encoded["attention_mask"].clone()
+        encoded["input_ids"][0, indices] = _neutral_token_id(self.tokenizer)
+        encoded["attention_mask"][0, indices] = 0
+        if int(encoded["attention_mask"].sum()) == 0:
+            raise ValueError("intervention hid every retriever token")
+        return self._forward(encoded)[0].cpu().numpy().astype(np.float32, copy=False)
+
     def encode_replaced(self, text: str, span: CharRange, donor_text: str) -> np.ndarray:
         return self.encode_replaced_ranges(text, [span], [donor_text])
 
@@ -222,7 +310,7 @@ class DenseRetriever:
         self,
         text: str,
         spans: Sequence[CharRange],
-        donor_texts: Sequence[str],
+        donor_texts: Sequence[str | None],
     ) -> np.ndarray:
         torch = _torch()
         if len(spans) != len(donor_texts) or not spans:
@@ -237,12 +325,10 @@ class DenseRetriever:
         )
         offsets = encoded.pop("offset_mapping")[0].tolist()
         encoded["input_ids"] = encoded["input_ids"].clone()
-        used: set[int] = set()
-        for span, donor_text in zip(spans, donor_texts, strict=True):
-            indices = _overlap_indices(offsets, span)
-            if used & set(indices):
-                raise ValueError("replacement spans overlap in retriever token space")
-            used.update(indices)
+        partitions = _partition_overlap_indices(offsets, spans)
+        for indices, donor_text in zip(partitions, donor_texts, strict=True):
+            if donor_text is None:
+                continue
             replacements = _replacement_ids(self.tokenizer, donor_text, len(indices))
             encoded["input_ids"][0, indices] = torch.tensor(replacements, dtype=torch.long)
         return self._forward(encoded)[0].cpu().numpy().astype(np.float32, copy=False)
@@ -317,9 +403,7 @@ class CrossEncoderReranker:
     def score_hidden(self, query: str, chunk: str, span: CharRange) -> float:
         return self.score_hidden_ranges(query, chunk, [span])
 
-    def score_hidden_ranges(
-        self, query: str, chunk: str, spans: Sequence[CharRange]
-    ) -> float:
+    def score_hidden_ranges(self, query: str, chunk: str, spans: Sequence[CharRange]) -> float:
         encoded = self.tokenizer(
             query,
             chunk,
@@ -341,6 +425,75 @@ class CrossEncoderReranker:
         encoded["attention_mask"][0, indices] = 0
         return float(self._score_encoded(encoded)[0])
 
+    def intervention_token_lengths(
+        self,
+        query: str,
+        chunk: str,
+        spans: Sequence[CharRange],
+    ) -> tuple[int, ...]:
+        encoded = self.tokenizer(
+            query,
+            chunk,
+            padding=False,
+            truncation=True,
+            max_length=self.max_length,
+            return_offsets_mapping=True,
+        )
+        offsets = encoded["offset_mapping"]
+        if (
+            offsets
+            and isinstance(offsets[0], list)
+            and offsets[0]
+            and isinstance(offsets[0][0], list)
+        ):
+            offsets = offsets[0]
+        sequence_ids = encoded.sequence_ids(0)
+        chunk_indices = [
+            index for index, sequence_id in enumerate(sequence_ids) if sequence_id == 1
+        ]
+        return tuple(
+            len(values)
+            for values in _partition_overlap_indices(offsets, spans, eligible=chunk_indices)
+        )
+
+    def score_hidden_partition(
+        self,
+        query: str,
+        chunk: str,
+        spans: Sequence[CharRange],
+        hidden: Sequence[bool],
+    ) -> float:
+        if len(spans) != len(hidden) or not spans:
+            raise ValueError("partition spans and hidden flags must have equal non-zero length")
+        encoded = self.tokenizer(
+            query,
+            chunk,
+            padding=False,
+            truncation=True,
+            max_length=self.max_length,
+            return_offsets_mapping=True,
+            return_tensors="pt",
+        )
+        offsets = encoded.pop("offset_mapping")[0].tolist()
+        sequence_ids = encoded.sequence_ids(0)
+        chunk_indices = [
+            index for index, sequence_id in enumerate(sequence_ids) if sequence_id == 1
+        ]
+        partitions = _partition_overlap_indices(offsets, spans, eligible=chunk_indices)
+        indices = sorted(
+            index
+            for values, should_hide in zip(partitions, hidden, strict=True)
+            if should_hide
+            for index in values
+        )
+        if not indices:
+            return float(self._score_encoded(encoded)[0])
+        encoded["input_ids"] = encoded["input_ids"].clone()
+        encoded["attention_mask"] = encoded["attention_mask"].clone()
+        encoded["input_ids"][0, indices] = _neutral_token_id(self.tokenizer)
+        encoded["attention_mask"][0, indices] = 0
+        return float(self._score_encoded(encoded)[0])
+
     def score_replaced(self, query: str, chunk: str, span: CharRange, donor_text: str) -> float:
         return self.score_replaced_ranges(query, chunk, [span], [donor_text])
 
@@ -349,7 +502,7 @@ class CrossEncoderReranker:
         query: str,
         chunk: str,
         spans: Sequence[CharRange],
-        donor_texts: Sequence[str],
+        donor_texts: Sequence[str | None],
     ) -> float:
         torch = _torch()
         if len(spans) != len(donor_texts) or not spans:
@@ -369,12 +522,10 @@ class CrossEncoderReranker:
             index for index, sequence_id in enumerate(sequence_ids) if sequence_id == 1
         ]
         encoded["input_ids"] = encoded["input_ids"].clone()
-        used: set[int] = set()
-        for span, donor_text in zip(spans, donor_texts, strict=True):
-            indices = _overlap_indices(offsets, span, eligible=chunk_indices)
-            if used & set(indices):
-                raise ValueError("replacement spans overlap in reranker token space")
-            used.update(indices)
+        partitions = _partition_overlap_indices(offsets, spans, eligible=chunk_indices)
+        for indices, donor_text in zip(partitions, donor_texts, strict=True):
+            if donor_text is None:
+                continue
             replacements = _replacement_ids(self.tokenizer, donor_text, len(indices))
             encoded["input_ids"][0, indices] = torch.tensor(replacements, dtype=torch.long)
         return float(self._score_encoded(encoded)[0])
@@ -542,12 +693,15 @@ class CausalAnswerGenerator:
             add_special_tokens=True,
         )
         offsets = encoded["offset_mapping"]
-        if offsets and isinstance(offsets[0], list) and offsets[0] and isinstance(
-            offsets[0][0], list
+        if (
+            offsets
+            and isinstance(offsets[0], list)
+            and offsets[0]
+            and isinstance(offsets[0][0], list)
         ):
             offsets = offsets[0]
         chunk_range = layout.chunk_ranges[chunk_id]
-        lengths: list[int] = []
+        prompt_spans: list[CharRange] = []
         for span in spans:
             prompt_span = CharRange(
                 start=chunk_range.start + span.start,
@@ -555,8 +709,8 @@ class CausalAnswerGenerator:
             )
             if prompt_span.end > chunk_range.end:
                 raise ValueError("intervention span exceeds the target chunk")
-            lengths.append(len(_overlap_indices(offsets, prompt_span)))
-        return tuple(lengths)
+            prompt_spans.append(prompt_span)
+        return tuple(len(values) for values in _partition_overlap_indices(offsets, prompt_spans))
 
     def teacher_score(
         self,
@@ -568,7 +722,9 @@ class CausalAnswerGenerator:
         hidden_spans: Sequence[CharRange] | None = None,
         donor_text: str | None = None,
         replacement_spans: Sequence[CharRange] | None = None,
-        replacement_texts: Sequence[str] | None = None,
+        replacement_texts: Sequence[str | None] | None = None,
+        partition_spans: Sequence[CharRange] | None = None,
+        partition_hidden: Sequence[bool] | None = None,
     ) -> float:
         torch = _torch()
         suffix = answer
@@ -587,10 +743,18 @@ class CausalAnswerGenerator:
         if hidden_span is not None and hidden_spans is not None:
             raise ValueError("use hidden_span or hidden_spans, not both")
         has_replacements = replacement_spans is not None or replacement_texts is not None
+        has_partition_mask = partition_spans is not None or partition_hidden is not None
         if has_replacements and (
-            hidden_span is not None or hidden_spans is not None or donor_text is not None
+            hidden_span is not None
+            or hidden_spans is not None
+            or donor_text is not None
+            or has_partition_mask
         ):
             raise ValueError("V0.1 replacements cannot be combined with legacy interventions")
+        if has_partition_mask and (
+            hidden_span is not None or hidden_spans is not None or donor_text is not None
+        ):
+            raise ValueError("partition masking cannot be combined with legacy interventions")
         if has_replacements:
             if replacement_spans is None or replacement_texts is None:
                 raise ValueError("replacement_spans and replacement_texts are both required")
@@ -600,34 +764,62 @@ class CausalAnswerGenerator:
                 raise ValueError("replacement intervention requires a mapped chunk_id")
             chunk_range = layout.chunk_ranges[chunk_id]
             encoded["input_ids"] = encoded["input_ids"].clone()
-            used: set[int] = set()
-            for span, replacement_text in zip(
-                replacement_spans, replacement_texts, strict=True
-            ):
+            prompt_spans: list[CharRange] = []
+            for span in replacement_spans:
                 prompt_span = CharRange(
                     start=chunk_range.start + span.start,
                     end=chunk_range.start + span.end,
                 )
                 if prompt_span.end > chunk_range.end:
                     raise ValueError("replacement span exceeds the target chunk")
-                indices = _overlap_indices(offsets, prompt_span)
-                if used & set(indices):
-                    raise ValueError("replacement spans overlap in generator token space")
+                prompt_spans.append(prompt_span)
+            partitions = _partition_overlap_indices(offsets, prompt_spans)
+            for indices, replacement_text in zip(partitions, replacement_texts, strict=True):
+                if replacement_text is None:
+                    continue
                 if set(indices) & set(answer_indices):
                     raise AssertionError("chunk replacement overlaps answer tokens")
-                used.update(indices)
                 replacements = _exact_replacement_ids(
                     self.tokenizer, replacement_text, len(indices)
                 )
-                encoded["input_ids"][0, indices] = torch.tensor(
-                    replacements, dtype=torch.long
+                encoded["input_ids"][0, indices] = torch.tensor(replacements, dtype=torch.long)
+        if has_partition_mask:
+            if partition_spans is None or partition_hidden is None:
+                raise ValueError("partition_spans and partition_hidden are both required")
+            if len(partition_spans) != len(partition_hidden) or not partition_spans:
+                raise ValueError("partition spans/flags must have equal non-zero length")
+            if chunk_id is None or chunk_id not in layout.chunk_ranges:
+                raise ValueError("partition mask requires a mapped chunk_id")
+            chunk_range = layout.chunk_ranges[chunk_id]
+            prompt_spans = [
+                CharRange(
+                    start=chunk_range.start + span.start,
+                    end=chunk_range.start + span.end,
                 )
+                for span in partition_spans
+            ]
+            if any(span.end > chunk_range.end for span in prompt_spans):
+                raise ValueError("partition span exceeds the target chunk")
+            partitions = _partition_overlap_indices(offsets, prompt_spans)
+            hidden_indices = sorted(
+                index
+                for values, should_hide in zip(partitions, partition_hidden, strict=True)
+                if should_hide
+                for index in values
+            )
+            if set(hidden_indices) & set(answer_indices):
+                raise AssertionError("chunk intervention overlaps answer tokens")
+            if hidden_indices:
+                encoded["input_ids"] = encoded["input_ids"].clone()
+                encoded["attention_mask"] = encoded["attention_mask"].clone()
+                encoded["input_ids"][0, hidden_indices] = _neutral_token_id(self.tokenizer)
+                encoded["attention_mask"][0, hidden_indices] = 0
         intervention_spans = (
             list(hidden_spans)
             if hidden_spans is not None
             else ([] if hidden_span is None else [hidden_span])
         )
-        if intervention_spans and not has_replacements:
+        if intervention_spans and not has_replacements and not has_partition_mask:
             if chunk_id is None or chunk_id not in layout.chunk_ranges:
                 raise ValueError("hidden intervention requires a mapped chunk_id")
             chunk_range = layout.chunk_ranges[chunk_id]

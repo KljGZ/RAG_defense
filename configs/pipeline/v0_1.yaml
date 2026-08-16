@@ -49,6 +49,9 @@ oracle_mechanism:
   minimum_valid_donor_replicates: 6
   donor_seed: 20260816
   donor_tokenizer: frozen_generator_tokenizer
+  token_ownership_rule: maximum_character_overlap_tie_to_earlier_A_then_P
+  generator_donor_length_policy: exact_partition_length
+  non_generator_donor_length_policy: at_least_partition_length_then_deterministic_prefix
   replacement_domain: fixed_length_model_token_ids_at_oracle_offsets
   direction_agreement_minimum: 0.80
   force_reranker_for_interventions: true

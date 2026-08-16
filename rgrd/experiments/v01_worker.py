@@ -16,7 +16,6 @@ from rgrd.experiments.resume import prepare_jsonl_resume, v01_event_provenance
 from rgrd.indexing import ExactIndexBundle
 from rgrd.models import CausalAnswerGenerator, CrossEncoderReranker, DenseRetriever
 from rgrd.pipeline.track_b import TrackBPipeline
-from rgrd.schema import CharRange
 from rgrd.v01.donors import (
     DeterministicDonorSampler,
 )
@@ -163,7 +162,9 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
         {"query_id": sample.query_id, "sample_id": sample.sample_id} for sample in canonical
     ]
     if manifest["rows"] != expected_rows or manifest["selection"] != asdict(audit):
-        raise RuntimeError("selection manifest no longer matches outcome-independent canonicalization")
+        raise RuntimeError(
+            "selection manifest no longer matches outcome-independent canonicalization"
+        )
     samples = {sample.sample_id: sample for sample in canonical}
     tasks = [
         samples[row["sample_id"]]
@@ -188,6 +189,9 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
     }
     bundle, pipeline = _pipeline(root, args.dataset, args.device, config, revisions)
     donor_config = config["oracle_mechanism"]
+    ownership_rule = "maximum_character_overlap_tie_to_earlier_A_then_P"
+    if donor_config.get("token_ownership_rule") != ownership_rule:
+        raise RuntimeError(f"V0.1 token ownership must be {ownership_rule}")
     sampler = DeterministicDonorSampler(
         bundle,
         pipeline.generator.tokenizer,
@@ -210,6 +214,8 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                     "anchor_payload_cochunk": False,
                     "gold_aliases_valid": False,
                     "target_distinct_from_gold": False,
+                    "oracle_token_partitions_valid": False,
+                    "donor_pairs_valid": False,
                     "actual_retrieval_hit": False,
                     "natural_end_to_end_success": False,
                     "forced_context_success": False,
@@ -227,9 +233,7 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                 except ValueError as exc:
                     message = str(exc)
                     stage = (
-                        "anchor_payload_cochunk"
-                        if "co-occur" in message
-                        else "source_ranges_valid"
+                        "anchor_payload_cochunk" if "co-occur" in message else "source_ranges_valid"
                     )
                     row = _ineligible_row(
                         provenance,
@@ -243,9 +247,7 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                     counts["ineligible"] += 1
                     continue
                 try:
-                    gold_aliases = valid_distinct_answers(
-                        sample.target_answer, sample.gold_answers
-                    )
+                    gold_aliases = valid_distinct_answers(sample.target_answer, sample.gold_answers)
                     checks["gold_aliases_valid"] = True
                     checks["target_distinct_from_gold"] = True
                 except ValueError as exc:
@@ -276,9 +278,7 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                 natural_layout = pipeline.generator.build_prompt(
                     sample.query, candidate_context(prepared.natural_selected)
                 )
-                natural_generation = deterministic_generation(
-                    pipeline.generator, natural_layout
-                )
+                natural_generation = deterministic_generation(pipeline.generator, natural_layout)
                 natural_success = attack_succeeds(sample, str(natural_generation["answer"]))
                 clean_layout = pipeline.generator.build_prompt(
                     sample.query, candidate_context(prepared.clean_selected)
@@ -304,32 +304,82 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                 checks["natural_end_to_end_success"] = natural_success
                 checks["forced_context_success"] = forced_success
 
-                anchor_lengths = pipeline.generator.intervention_token_lengths(
-                    original_forced_layout,
-                    chunk_id=poison_chunk.chunk_id,
-                    spans=poison_chunk.anchor_ranges_chunk,
+                all_oracle_spans = [
+                    *poison_chunk.anchor_ranges_chunk,
+                    *poison_chunk.payload_ranges_chunk,
+                ]
+                anchor_count = len(poison_chunk.anchor_ranges_chunk)
+                try:
+                    generator_lengths = pipeline.generator.intervention_token_lengths(
+                        original_forced_layout,
+                        chunk_id=poison_chunk.chunk_id,
+                        spans=all_oracle_spans,
+                    )
+                    retriever_lengths = pipeline.retriever.intervention_token_lengths(
+                        poison_chunk.text, all_oracle_spans
+                    )
+                    reranker_lengths = pipeline.reranker.intervention_token_lengths(
+                        sample.query, poison_chunk.text, all_oracle_spans
+                    )
+                    checks["oracle_token_partitions_valid"] = True
+                except ValueError as exc:
+                    row = _ineligible_row(
+                        provenance,
+                        sample=sample,
+                        stage="oracle_token_partition",
+                        reason=str(exc),
+                        checks=checks,
+                        physical_gpu=physical_gpu,
+                    )
+                    _write_row(handle, row)
+                    counts["ineligible"] += 1
+                    continue
+                anchor_lengths = generator_lengths[:anchor_count]
+                payload_lengths = generator_lengths[anchor_count:]
+                anchor_minimum_requirements = tuple(
+                    (
+                        ("retriever", pipeline.retriever.tokenizer, retriever_lengths[index]),
+                        ("reranker", pipeline.reranker.tokenizer, reranker_lengths[index]),
+                    )
+                    for index in range(anchor_count)
                 )
-                payload_lengths = pipeline.generator.intervention_token_lengths(
-                    original_forced_layout,
-                    chunk_id=poison_chunk.chunk_id,
-                    spans=poison_chunk.payload_ranges_chunk,
+                payload_minimum_requirements = tuple(
+                    (
+                        ("retriever", pipeline.retriever.tokenizer, retriever_lengths[index]),
+                        ("reranker", pipeline.reranker.tokenizer, reranker_lengths[index]),
+                    )
+                    for index in range(anchor_count, len(all_oracle_spans))
                 )
                 relevant_sources = {
-                    doc_id
-                    for doc_id, score in qrels.get(sample.query_id, {}).items()
-                    if score > 0
+                    doc_id for doc_id, score in qrels.get(sample.query_id, {}).items() if score > 0
                 }
-                donor_pairs = sampler.sample_pairs(
-                    sample_id=sample.sample_id,
-                    anchor_lengths=anchor_lengths,
-                    payload_lengths=payload_lengths,
-                    original_text=poison_chunk.text,
-                    anchor_ranges=poison_chunk.anchor_ranges_chunk,
-                    payload_ranges=poison_chunk.payload_ranges_chunk,
-                    excluded_source_ids=relevant_sources,
-                    forbidden_texts=[sample.query, sample.target_answer, *gold_aliases],
-                    replicates=int(donor_config["donor_replicates"]),
-                )
+                try:
+                    donor_pairs = sampler.sample_pairs(
+                        sample_id=sample.sample_id,
+                        anchor_lengths=anchor_lengths,
+                        payload_lengths=payload_lengths,
+                        original_text=poison_chunk.text,
+                        anchor_ranges=poison_chunk.anchor_ranges_chunk,
+                        payload_ranges=poison_chunk.payload_ranges_chunk,
+                        excluded_source_ids=relevant_sources,
+                        forbidden_texts=[sample.query, sample.target_answer, *gold_aliases],
+                        replicates=int(donor_config["donor_replicates"]),
+                        anchor_minimum_requirements=anchor_minimum_requirements,
+                        payload_minimum_requirements=payload_minimum_requirements,
+                    )
+                    checks["donor_pairs_valid"] = True
+                except (RuntimeError, ValueError) as exc:
+                    row = _ineligible_row(
+                        provenance,
+                        sample=sample,
+                        stage="donor_sampling",
+                        reason=str(exc),
+                        checks=checks,
+                        physical_gpu=physical_gpu,
+                    )
+                    _write_row(handle, row)
+                    counts["ineligible"] += 1
+                    continue
 
                 full_generation_margin, full_target_score, full_gold_score = generation_margin(
                     pipeline.generator,
@@ -353,7 +403,7 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                     generation: dict[str, dict[str, float]] = {}
                     for name in names:
                         spans, donor_texts = interventions[name]
-                        if spans:
+                        if any(value is not None for value in donor_texts):
                             margin, target_score, gold_score = generation_margin(
                                 pipeline.generator,
                                 original_forced_layout,
@@ -370,9 +420,7 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                             }
                         else:
                             generation[name] = full_generation
-                    contrast = oracle_contrast(
-                        _coalition(retrieval), _coalition(generation)
-                    )
+                    contrast = oracle_contrast(_coalition(retrieval), _coalition(generation))
                     contrasts.append(contrast)
                     replicate_rows.append(
                         {
@@ -392,33 +440,33 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                 mask_row: dict[str, Any]
                 mask_contrast = None
                 try:
-                    mask_retrieval = mask_retrieval_values(
-                        pipeline, prepared, sample.query
-                    )
-                    hidden_by_coalition: dict[str, list[CharRange]] = {
-                        "empty": [
-                            *poison_chunk.anchor_ranges_chunk,
-                            *poison_chunk.payload_ranges_chunk,
-                        ],
-                        "anchor": list(poison_chunk.payload_ranges_chunk),
-                        "payload": list(poison_chunk.anchor_ranges_chunk),
-                        "both": [],
+                    mask_retrieval = mask_retrieval_values(pipeline, prepared, sample.query)
+                    payload_count = len(poison_chunk.payload_ranges_chunk)
+                    hidden_by_coalition: dict[str, list[bool]] = {
+                        "empty": [True] * len(all_oracle_spans),
+                        "anchor": [False] * anchor_count + [True] * payload_count,
+                        "payload": [True] * anchor_count + [False] * payload_count,
+                        "both": [False] * len(all_oracle_spans),
                     }
                     mask_generation: dict[str, dict[str, float]] = {}
-                    for name, hidden in hidden_by_coalition.items():
-                        margin, target_score, gold_score = generation_margin(
-                            pipeline.generator,
-                            original_forced_layout,
-                            target=sample.target_answer,
-                            fixed_gold=fixed_gold,
-                            chunk_id=poison_chunk.chunk_id,
-                            hidden_spans=hidden,
-                        )
-                        mask_generation[name] = {
-                            "value": margin,
-                            "target_mean_logp": target_score,
-                            "gold_mean_logp": gold_score,
-                        }
+                    for name, hidden_flags in hidden_by_coalition.items():
+                        if any(hidden_flags):
+                            margin, target_score, gold_score = generation_margin(
+                                pipeline.generator,
+                                original_forced_layout,
+                                target=sample.target_answer,
+                                fixed_gold=fixed_gold,
+                                chunk_id=poison_chunk.chunk_id,
+                                partition_spans=all_oracle_spans,
+                                partition_hidden=hidden_flags,
+                            )
+                            mask_generation[name] = {
+                                "value": margin,
+                                "target_mean_logp": target_score,
+                                "gold_mean_logp": gold_score,
+                            }
+                        else:
+                            mask_generation[name] = full_generation
                     mask_contrast = oracle_contrast(
                         _coalition(mask_retrieval), _coalition(mask_generation)
                     )
@@ -447,9 +495,7 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                     if mask_contrast is not None
                     else float("nan")
                 )
-                agreement_threshold = float(
-                    donor_config["direction_agreement_minimum"]
-                )
+                agreement_threshold = float(donor_config["direction_agreement_minimum"])
                 direction_robust = bool(
                     np.isfinite(retrieval_agreement)
                     and np.isfinite(generation_agreement)
@@ -485,18 +531,32 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                         ],
                         "anchor_token_lengths": list(anchor_lengths),
                         "payload_token_lengths": list(payload_lengths),
-                        "donor_tokenizer": str(
-                            pipeline.generator.tokenizer.name_or_path
-                        ),
+                        "token_ownership_rule": ownership_rule,
+                        "model_token_partitions": {
+                            "generator": {
+                                "anchor": list(generator_lengths[:anchor_count]),
+                                "payload": list(generator_lengths[anchor_count:]),
+                            },
+                            "retriever": {
+                                "anchor": list(retriever_lengths[:anchor_count]),
+                                "payload": list(retriever_lengths[anchor_count:]),
+                            },
+                            "reranker": {
+                                "anchor": list(reranker_lengths[:anchor_count]),
+                                "payload": list(reranker_lengths[anchor_count:]),
+                            },
+                        },
+                        "donor_tokenizer": str(pipeline.generator.tokenizer.name_or_path),
                         "token_level_replacement_preserves_model_sequence_length": True,
+                        "non_generator_donor_policy": (
+                            "at_least_partition_length_then_deterministic_prefix"
+                        ),
                     },
                     "outcomes": {
                         "actual_retrieval_hit": prepared.actual_retrieval_hit,
                         "natural_end_to_end_success": natural_success,
                         "forced_context_success": forced_success,
-                        "stratum": _outcome_stratum(
-                            prepared.actual_retrieval_hit, forced_success
-                        ),
+                        "stratum": _outcome_stratum(prepared.actual_retrieval_hit, forced_success),
                         "poison_dense_rank": prepared.poison_dense_rank,
                         "poison_rerank_rank": prepared.poison_rerank_rank,
                         "natural_generation": natural_generation,

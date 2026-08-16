@@ -19,6 +19,7 @@ class DonorSegment:
     source_doc_id: str
     text: str
     token_length: int
+    model_token_lengths: dict[str, int]
     chunk_token_start: int
     chunk_token_end: int
 
@@ -129,6 +130,7 @@ class DeterministicDonorSampler:
         excluded_sources: set[str],
         forbidden_phrases: tuple[str, ...],
         attempted_ids: set[int],
+        minimum_requirements: Sequence[tuple[str, object, int]],
     ) -> DonorSegment:
         for _ in range(self.maximum_attempts):
             faiss_id = rng.randrange(self.index.chunk_count)
@@ -159,7 +161,18 @@ class DeterministicDonorSampler:
                     normalized = normalize_answer(donor)
                     if not normalized or any(value in normalized for value in forbidden_phrases):
                         continue
-                    if token_length(self.tokenizer, donor) != length:
+                    generator_length = token_length(self.tokenizer, donor)
+                    if generator_length != length:
+                        continue
+                    model_lengths = {"generator": generator_length}
+                    requirement_failed = False
+                    for name, tokenizer, minimum in minimum_requirements:
+                        observed = token_length(tokenizer, donor)
+                        model_lengths[name] = observed
+                        if observed < int(minimum):
+                            requirement_failed = True
+                            break
+                    if requirement_failed:
                         continue
                     used_sources.add(source_id)
                     return DonorSegment(
@@ -168,6 +181,7 @@ class DeterministicDonorSampler:
                         source_doc_id=source_id,
                         text=donor,
                         token_length=length,
+                        model_token_lengths=model_lengths,
                         chunk_token_start=start,
                         chunk_token_end=start + window_length,
                     )
@@ -188,6 +202,8 @@ class DeterministicDonorSampler:
         excluded_source_ids: Iterable[str],
         forbidden_texts: Iterable[str],
         replicates: int = 8,
+        anchor_minimum_requirements: Sequence[Sequence[tuple[str, object, int]]] | None = None,
+        payload_minimum_requirements: Sequence[Sequence[tuple[str, object, int]]] | None = None,
     ) -> tuple[DonorPair, ...]:
         if replicates != 8:
             raise ValueError("RGRD-V0.1 requires exactly eight donor pairs")
@@ -196,19 +212,35 @@ class DeterministicDonorSampler:
         if any(int(value) <= 0 for value in (*anchor_lengths, *payload_lengths)):
             raise ValueError("donor token lengths must be positive")
         forbidden = tuple(
-            value
-            for value in (normalize_answer(text) for text in forbidden_texts)
-            if value
+            value for value in (normalize_answer(text) for text in forbidden_texts) if value
         )
         excluded = {str(value) for value in excluded_source_ids}
         used_sources: set[str] = set()
         attempted_ids: set[int] = set()
         rng = self._rng(sample_id)
         pairs: list[DonorPair] = []
-        if len(anchor_lengths) != len(anchor_ranges) or len(payload_lengths) != len(
-            payload_ranges
-        ):
+        if len(anchor_lengths) != len(anchor_ranges) or len(payload_lengths) != len(payload_ranges):
             raise ValueError("Oracle token lengths and ranges disagree")
+        anchor_requirements = (
+            tuple(() for _ in anchor_lengths)
+            if anchor_minimum_requirements is None
+            else tuple(tuple(values) for values in anchor_minimum_requirements)
+        )
+        payload_requirements = (
+            tuple(() for _ in payload_lengths)
+            if payload_minimum_requirements is None
+            else tuple(tuple(values) for values in payload_minimum_requirements)
+        )
+        if len(anchor_requirements) != len(anchor_lengths) or len(payload_requirements) != len(
+            payload_lengths
+        ):
+            raise ValueError("donor minimum requirements and Oracle ranges disagree")
+        if any(
+            int(minimum) <= 0
+            for requirements in (*anchor_requirements, *payload_requirements)
+            for _, _, minimum in requirements
+        ):
+            raise ValueError("donor minimum token requirements must be positive")
         validate_disjoint_ranges(original_text, anchor_ranges, payload_ranges)
         anchor_targets = [original_text[span.start : span.end] for span in anchor_ranges]
         payload_targets = [original_text[span.start : span.end] for span in payload_ranges]
@@ -222,8 +254,14 @@ class DeterministicDonorSampler:
                     excluded_sources=excluded,
                     forbidden_phrases=forbidden,
                     attempted_ids=attempted_ids,
+                    minimum_requirements=requirements,
                 )
-                for length, target in zip(anchor_lengths, anchor_targets, strict=True)
+                for length, target, requirements in zip(
+                    anchor_lengths,
+                    anchor_targets,
+                    anchor_requirements,
+                    strict=True,
+                )
             )
             payload = tuple(
                 self._segment(
@@ -234,8 +272,14 @@ class DeterministicDonorSampler:
                     excluded_sources=excluded,
                     forbidden_phrases=forbidden,
                     attempted_ids=attempted_ids,
+                    minimum_requirements=requirements,
                 )
-                for length, target in zip(payload_lengths, payload_targets, strict=True)
+                for length, target, requirements in zip(
+                    payload_lengths,
+                    payload_targets,
+                    payload_requirements,
+                    strict=True,
+                )
             )
             pairs.append(DonorPair(replicate=replicate, anchor=anchor, payload=payload))
         return tuple(pairs)
