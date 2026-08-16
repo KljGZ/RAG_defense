@@ -541,10 +541,11 @@ class V01Runner:
             return 0 if primary == GateStatus.PASS and robustness == GateStatus.PASS else 2
         except InterruptedError as exc:
             self._terminate_children()
+            stop_message = str(exc)
 
             def stopped(state: RunState) -> None:
                 state.status = "stopped"
-                state.errors.append(str(exc))
+                state.errors.append(stop_message)
 
             self.store.mutate(stopped)
             self._log("stopped by signal")
