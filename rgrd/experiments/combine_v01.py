@@ -12,7 +12,7 @@ import numpy as np
 import yaml
 
 from rgrd.pipeline.state import GateStatus
-from rgrd.provenance import utc_now
+from rgrd.provenance import sha256_file, utc_now
 from rgrd.statistics.tests import holm_adjust
 from rgrd.statistics.v01 import (
     exact_one_sided_sign_test,
@@ -329,7 +329,18 @@ def combine(
     rows_by_family = {
         family: [row for row in rows if row["family"] == family] for family in families
     }
+    unexpected_families = sorted({str(row["family"]) for row in rows} - set(families))
+    if unexpected_families:
+        raise RuntimeError(f"V0.1 input includes out-of-scope families: {unexpected_families}")
     for family in families:
+        expected_manifest_hash = sha256_file(manifests[family])
+        if any(
+            row.get("selection_manifest_sha256") != expected_manifest_hash
+            for row in rows_by_family[family]
+        ):
+            raise RuntimeError(
+                f"V0.1 family {family} rows do not match the supplied selection manifest"
+            )
         expected = {row["sample_id"] for row in manifest_values[family]["rows"]}
         observed = {row["sample_id"] for row in rows_by_family[family]}
         if expected != observed:
