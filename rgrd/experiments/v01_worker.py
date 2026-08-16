@@ -395,36 +395,48 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                 replicate_rows: list[dict[str, Any]] = []
                 contrasts = []
                 for pair in donor_pairs:
-                    names = ("empty", "anchor", "payload", "both")
-                    interventions = donor_interventions(poison_chunk, pair)
-                    retrieval = retrieval_values_for_interventions(
-                        pipeline, prepared, sample.query, interventions
-                    )
-                    generation: dict[str, dict[str, float]] = {}
-                    for name in names:
-                        spans, donor_texts = interventions[name]
-                        if any(value is not None for value in donor_texts):
-                            margin, target_score, gold_score = generation_margin(
-                                pipeline.generator,
-                                original_forced_layout,
-                                target=sample.target_answer,
-                                fixed_gold=fixed_gold,
-                                chunk_id=poison_chunk.chunk_id,
-                                replacement_spans=spans,
-                                replacement_texts=donor_texts,
-                            )
-                            generation[name] = {
-                                "value": margin,
-                                "target_mean_logp": target_score,
-                                "gold_mean_logp": gold_score,
+                    try:
+                        names = ("empty", "anchor", "payload", "both")
+                        interventions = donor_interventions(poison_chunk, pair)
+                        retrieval = retrieval_values_for_interventions(
+                            pipeline, prepared, sample.query, interventions
+                        )
+                        generation: dict[str, dict[str, float]] = {}
+                        for name in names:
+                            spans, donor_texts = interventions[name]
+                            if any(value is not None for value in donor_texts):
+                                margin, target_score, gold_score = generation_margin(
+                                    pipeline.generator,
+                                    original_forced_layout,
+                                    target=sample.target_answer,
+                                    fixed_gold=fixed_gold,
+                                    chunk_id=poison_chunk.chunk_id,
+                                    replacement_spans=spans,
+                                    replacement_texts=donor_texts,
+                                )
+                                generation[name] = {
+                                    "value": margin,
+                                    "target_mean_logp": target_score,
+                                    "gold_mean_logp": gold_score,
+                                }
+                            else:
+                                generation[name] = full_generation
+                        contrast = oracle_contrast(_coalition(retrieval), _coalition(generation))
+                    except (FloatingPointError, ValueError) as exc:
+                        replicate_rows.append(
+                            {
+                                "replicate": pair.replicate,
+                                "valid": False,
+                                "reason": str(exc),
+                                "donors": asdict(pair),
                             }
-                        else:
-                            generation[name] = full_generation
-                    contrast = oracle_contrast(_coalition(retrieval), _coalition(generation))
+                        )
+                        continue
                     contrasts.append(contrast)
                     replicate_rows.append(
                         {
                             "replicate": pair.replicate,
+                            "valid": True,
                             "donors": asdict(pair),
                             "retrieval_coalitions": retrieval,
                             "generation_coalitions": generation,
@@ -437,6 +449,26 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                     total_replicates=int(donor_config["donor_replicates"]),
                     minimum_valid=int(donor_config["minimum_valid_donor_replicates"]),
                 )
+                if not aggregate.role_identifiable:
+                    row = {
+                        **_ineligible_row(
+                            provenance,
+                            sample=sample,
+                            stage="minimum_valid_donor_replicates",
+                            reason=(
+                                f"{aggregate.valid_replicates}/"
+                                f"{aggregate.total_replicates} finite donor replicates; "
+                                f"requires >= "
+                                f"{int(donor_config['minimum_valid_donor_replicates'])}"
+                            ),
+                            checks=checks,
+                            physical_gpu=physical_gpu,
+                        ),
+                        "donor_replicates": replicate_rows,
+                    }
+                    _write_row(handle, row)
+                    counts["ineligible"] += 1
+                    continue
                 mask_row: dict[str, Any]
                 mask_contrast = None
                 try:
@@ -476,7 +508,7 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                         "generation_coalitions": mask_generation,
                         "contrast": asdict(mask_contrast),
                     }
-                except ValueError as exc:
+                except (FloatingPointError, ValueError) as exc:
                     mask_row = {"valid": False, "reason": str(exc)}
 
                 retrieval_agreement = (
