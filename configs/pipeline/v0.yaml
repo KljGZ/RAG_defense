@@ -3,6 +3,7 @@ seed: 20260814
 
 runtime:
   gpu_admission:
+    allowed_physical_gpus: [4, 5, 6, 7]
     full_model_min_free_mib: 19000
     index_min_free_mib: 2048
     poll_seconds: 30

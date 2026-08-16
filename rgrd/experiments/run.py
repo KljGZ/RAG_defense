@@ -85,6 +85,21 @@ class ExperimentRunner:
             (self.root / "configs/pipeline/v0.yaml").read_text(encoding="utf-8")
         )
         gpu_admission = self.pipeline.get("runtime", {}).get("gpu_admission", {})
+        allowed_physical_gpus = gpu_admission.get("allowed_physical_gpus")
+        if (
+            not isinstance(allowed_physical_gpus, list)
+            or not allowed_physical_gpus
+            or any(
+                isinstance(index, bool) or not isinstance(index, int) or index < 0
+                for index in allowed_physical_gpus
+            )
+            or len(allowed_physical_gpus) != len(set(allowed_physical_gpus))
+        ):
+            raise ValueError(
+                "runtime.gpu_admission.allowed_physical_gpus must be a non-empty "
+                "list of unique non-negative physical GPU indices"
+            )
+        self.gpu_allowed_physical_gpus = tuple(allowed_physical_gpus)
         self.gpu_full_min_free_mib = int(
             gpu_admission.get("full_model_min_free_mib", 19000)
         )
@@ -133,6 +148,9 @@ class ExperimentRunner:
                 "PYTHONDONTWRITEBYTECODE": "1",
                 "HF_HUB_OFFLINE": "1",
                 "TRANSFORMERS_OFFLINE": "1",
+                "CUDA_VISIBLE_DEVICES": ",".join(
+                    str(index) for index in self.gpu_allowed_physical_gpus
+                ),
             }
         )
         self.state = self._new_state()
@@ -392,10 +410,21 @@ class ExperimentRunner:
                         )
 
                 memory = query_gpu_memory()
-                if minimum_free_mib > max(value.total_mib for value in memory.values()):
+                missing_allowed = set(self.gpu_allowed_physical_gpus) - set(memory)
+                if missing_allowed:
+                    raise RuntimeError(
+                        "configured physical GPUs are not reported by nvidia-smi: "
+                        f"{sorted(missing_allowed)}"
+                    )
+                allowed_memory = {
+                    index: memory[index] for index in self.gpu_allowed_physical_gpus
+                }
+                if minimum_free_mib > max(
+                    value.total_mib for value in allowed_memory.values()
+                ):
                     raise RuntimeError(
                         f"GPU queue {label} requires {minimum_free_mib} MiB free, exceeding "
-                        "all installed GPU capacities"
+                        "all allowed GPU capacities"
                     )
                 quarantined = {
                     index for index, until in quarantined_until.items() if until > now
@@ -409,6 +438,7 @@ class ExperimentRunner:
                         candidates = rank_eligible_gpus(
                             memory,
                             minimum_free_mib=required_free[job.name],
+                            allowed=self.gpu_allowed_physical_gpus,
                             busy=busy,
                             quarantined=quarantined,
                         )
@@ -462,6 +492,10 @@ class ExperimentRunner:
                 self._progress(
                     active_group=label,
                     gpu_admission={
+                        "allowed_physical_gpus": list(self.gpu_allowed_physical_gpus),
+                        "excluded_physical_gpus": sorted(
+                            set(memory) - set(self.gpu_allowed_physical_gpus)
+                        ),
                         "base_min_free_mib": minimum_free_mib,
                         "pending": [job.name for job in pending],
                         "running": {

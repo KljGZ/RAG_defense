@@ -23,6 +23,16 @@ def test_parse_and_rank_gpu_memory() -> None:
         busy={1},
     ) == [2]
     assert rank_eligible_gpus(memory, minimum_free_mib=19000) == [1, 2]
+    assert rank_eligible_gpus(
+        memory,
+        minimum_free_mib=19000,
+        allowed={2},
+    ) == [2]
+    assert rank_eligible_gpus(
+        memory,
+        minimum_free_mib=19000,
+        allowed=set(),
+    ) == []
 
 
 @pytest.mark.parametrize(
@@ -61,6 +71,7 @@ def test_gpu_queue_retries_only_oom_job(tmp_path: Path, monkeypatch: pytest.Monk
     runner = ExperimentRunner.__new__(ExperimentRunner)
     runner.root = tmp_path
     runner.base_environment = os.environ.copy()
+    runner.gpu_allowed_physical_gpus = (4,)
     runner.gpu_admission_poll_seconds = 0
     runner.gpu_oom_retry_limit = 2
     runner.gpu_oom_retry_cooldown_seconds = 0
@@ -70,7 +81,10 @@ def test_gpu_queue_retries_only_oom_job(tmp_path: Path, monkeypatch: pytest.Monk
     monkeypatch.setattr(
         run_module,
         "query_gpu_memory",
-        lambda: {0: GpuMemory(total_mib=24564, free_mib=24000)},
+        lambda: {
+            0: GpuMemory(total_mib=24564, free_mib=24500),
+            4: GpuMemory(total_mib=24564, free_mib=24000),
+        },
     )
 
     result = runner._run_gpu_queue(
@@ -87,3 +101,14 @@ def test_gpu_queue_retries_only_oom_job(tmp_path: Path, monkeypatch: pytest.Monk
     assert result == {"shard-00": 0}
     assert counter.read_text() == "2"
     assert any(item.get("last_oom_retry") for item in progress)
+    assert any(
+        item.get("gpu_admission", {}).get("allowed_physical_gpus") == [4]
+        for item in progress
+    )
+    selected_gpus = [
+        details["physical_gpu"]
+        for item in progress
+        for details in item.get("gpu_admission", {}).get("running", {}).values()
+    ]
+    assert selected_gpus
+    assert set(selected_gpus) == {4}

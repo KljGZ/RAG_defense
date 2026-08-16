@@ -63,17 +63,21 @@ def rank_eligible_gpus(
     memory: dict[int, GpuMemory],
     *,
     minimum_free_mib: int,
+    allowed: Iterable[int] | None = None,
     busy: Iterable[int] = (),
     quarantined: Iterable[int] = (),
 ) -> list[int]:
     """Return safe GPUs ordered by most free memory, then stable physical index."""
 
     unavailable = set(busy) | set(quarantined)
+    allowed_set = None if allowed is None else set(allowed)
     return sorted(
         (
             index
             for index, value in memory.items()
-            if index not in unavailable and value.free_mib >= minimum_free_mib
+            if (allowed_set is None or index in allowed_set)
+            and index not in unavailable
+            and value.free_mib >= minimum_free_mib
         ),
         key=lambda index: (-memory[index].free_mib, index),
     )
