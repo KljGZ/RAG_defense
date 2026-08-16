@@ -46,8 +46,10 @@ def write_legacy_correction(root: Path) -> tuple[Path, Path]:
         if mechanism_path.is_file()
         else {}
     )
-    counts = mechanism.get("family_counts", {})
-    missing = mechanism.get("missing_quotas", {})
+    counts = mechanism.get("available_counts", mechanism.get("family_counts", {}))
+    missing = mechanism.get("gate_3", {}).get(
+        "missing", mechanism.get("missing_quotas", {})
+    )
     corrected_text = f"""# Corrected interpretation of the frozen RGRD-V0 run
 
 Generated at `{utc_now()}`. The original `artifacts/reports/V0_final_report.md` is
