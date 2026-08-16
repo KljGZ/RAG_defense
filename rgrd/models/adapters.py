@@ -542,9 +542,38 @@ class GenerationAudit:
     answer: str
     continuation: str
     generated_tokens: int
+    generated_token_ids: tuple[int, ...]
+    accepted_eos_token_ids: tuple[int, ...]
+    termination_token_id: int | None
     terminated_by_eos: bool
     truncated: bool
     strict_single_line: bool
+
+
+def _token_id_tuple(values: object) -> tuple[int, ...]:
+    if values is None:
+        return ()
+    candidates = values if isinstance(values, (list, tuple, set)) else (values,)
+    result: list[int] = []
+    for value in candidates:
+        token_id = int(value)
+        if token_id < 0:
+            raise ValueError("special token IDs must be non-negative")
+        if token_id not in result:
+            result.append(token_id)
+    return tuple(result)
+
+
+def _resolve_generation_eos_token_ids(model: object, tokenizer: object) -> tuple[int, ...]:
+    """Honor every checkpoint EOS ID, with the tokenizer as an explicit fallback."""
+
+    generation_config = getattr(model, "generation_config", None)
+    configured = _token_id_tuple(getattr(generation_config, "eos_token_id", None))
+    fallback = _token_id_tuple(getattr(tokenizer, "eos_token_id", None))
+    result = tuple(dict.fromkeys((*configured, *fallback)))
+    if not result:
+        raise RuntimeError("generator checkpoint and tokenizer define no EOS token")
+    return result
 
 
 class CausalAnswerGenerator:
@@ -586,6 +615,7 @@ class CausalAnswerGenerator:
             .eval()
             .to(self.device)
         )
+        self.eos_token_ids = _resolve_generation_eos_token_ids(self.model, self.tokenizer)
         self.model_dtype = _loaded_model_dtype(self.model)
         if self.requested_dtype != "auto" and self.model_dtype != self.requested_dtype:
             raise RuntimeError(
@@ -639,6 +669,11 @@ class CausalAnswerGenerator:
         set_deterministic(self.seed)
         encoded = self.tokenizer(layout.prompt, return_tensors="pt", add_special_tokens=True)
         encoded = {key: value.to(self.device) for key, value in encoded.items()}
+        eos_token_id: int | list[int] = (
+            self.eos_token_ids[0]
+            if len(self.eos_token_ids) == 1
+            else list(self.eos_token_ids)
+        )
         with torch.inference_mode():
             output = self.model.generate(
                 **encoded,
@@ -649,19 +684,16 @@ class CausalAnswerGenerator:
                 max_new_tokens=self.max_new_tokens,
                 use_cache=True,
                 pad_token_id=self.tokenizer.pad_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=eos_token_id,
             )
         continuation_ids = output[0, encoded["input_ids"].shape[-1] :]
         continuation = self.tokenizer.decode(continuation_ids, skip_special_tokens=True)
         answer = parse_final_answer("FINAL_ANSWER: " + continuation)
-        eos_values = self.tokenizer.eos_token_id
-        eos_ids = (
-            {int(value) for value in eos_values}
-            if isinstance(eos_values, (list, tuple, set))
-            else ({int(eos_values)} if eos_values is not None else set())
-        )
         generated_ids = [int(value) for value in continuation_ids.tolist()]
-        terminated_by_eos = bool(generated_ids and generated_ids[-1] in eos_ids)
+        terminated_by_eos = bool(
+            generated_ids and generated_ids[-1] in set(self.eos_token_ids)
+        )
+        termination_token_id = generated_ids[-1] if terminated_by_eos else None
         truncated = len(generated_ids) >= self.max_new_tokens and not terminated_by_eos
         nonempty_lines = [line for line in continuation.splitlines() if line.strip()]
         strict_single_line = len(nonempty_lines) == 1
@@ -669,6 +701,9 @@ class CausalAnswerGenerator:
             answer=answer,
             continuation=continuation,
             generated_tokens=len(generated_ids),
+            generated_token_ids=tuple(generated_ids),
+            accepted_eos_token_ids=self.eos_token_ids,
+            termination_token_id=termination_token_id,
             terminated_by_eos=terminated_by_eos,
             truncated=truncated,
             strict_single_line=strict_single_line,

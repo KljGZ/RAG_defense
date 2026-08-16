@@ -94,6 +94,8 @@ def _attrition(manifest: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str
         "anchor_payload_cochunk",
         "gold_aliases_valid",
         "target_distinct_from_gold",
+        "natural_generation_valid",
+        "forced_generation_valid",
         "oracle_token_partitions_valid",
         "donor_pairs_valid",
         "actual_retrieval_hit",
@@ -210,6 +212,8 @@ def _report(result: dict[str, Any]) -> str:
             f"{value['canonical_samples']} | {checks['source_ranges_valid']} | "
             f"{checks['anchor_payload_cochunk']} | {checks['gold_aliases_valid']} | "
             f"{checks['target_distinct_from_gold']} | "
+            f"{checks['natural_generation_valid']} | "
+            f"{checks['forced_generation_valid']} | "
             f"{checks['oracle_token_partitions_valid']} | "
             f"{checks['donor_pairs_valid']} | {checks['mechanism_scores_finite']} |"
         )
@@ -254,8 +258,8 @@ positive clipping and separate normalization discard absolute generation scale.
 
 ## Attrition ledger
 
-| Family | Loaded samples | Unique queries | Canonical | Valid ranges | A/P co-chunk | Valid gold | Target distinct | Token partitions | 8 donor pairs | Finite mechanism |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Family | Loaded samples | Unique queries | Canonical | Valid ranges | A/P co-chunk | Valid gold | Target distinct | Natural format | Forced format | Token partitions | 8 donor pairs | Finite mechanism |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 {chr(10).join(attrition_rows)}
 
 Canonicalization selected the lexicographically smallest `sample_id` per `query_id`

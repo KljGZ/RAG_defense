@@ -132,7 +132,7 @@ class V01Runner:
             )
         }
         return RunState(
-            schema_version=2,
+            schema_version=3,
             run_id=self.run_id,
             status="running",
             root=str(self.root),
@@ -140,6 +140,9 @@ class V01Runner:
             model_revisions=self.models,
             pipeline_config_sha256=sha256_file(
                 self.root / "configs/pipeline/v0_1.yaml"
+            ),
+            experiment_config_sha256=sha256_file(
+                self.root / "configs/experiments/v0_1_preregistration.yaml"
             ),
             pid=os.getpid(),
             log_path=str(self.log_path),

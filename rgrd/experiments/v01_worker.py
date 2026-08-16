@@ -20,6 +20,7 @@ from rgrd.v01.donors import (
     DeterministicDonorSampler,
 )
 from rgrd.v01.engine import (
+    GenerationFormatError,
     candidate_context,
     deterministic_generation,
     donor_interventions,
@@ -119,8 +120,9 @@ def _ineligible_row(
     reason: str,
     checks: dict[str, bool],
     physical_gpu: int,
+    evidence: dict[str, object] | None = None,
 ) -> dict[str, Any]:
-    return {
+    row = {
         **provenance,
         "sample_id": sample.sample_id,
         "query_id": sample.query_id,
@@ -132,6 +134,9 @@ def _ineligible_row(
         "attrition_checks": checks,
         "physical_gpu": physical_gpu,
     }
+    if evidence is not None:
+        row["ineligible_evidence"] = evidence
+    return row
 
 
 def _write_row(handle: Any, row: dict[str, Any]) -> None:
@@ -214,6 +219,8 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                     "anchor_payload_cochunk": False,
                     "gold_aliases_valid": False,
                     "target_distinct_from_gold": False,
+                    "natural_generation_valid": False,
+                    "forced_generation_valid": False,
                     "oracle_token_partitions_valid": False,
                     "donor_pairs_valid": False,
                     "actual_retrieval_hit": False,
@@ -278,7 +285,24 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                 natural_layout = pipeline.generator.build_prompt(
                     sample.query, candidate_context(prepared.natural_selected)
                 )
-                natural_generation = deterministic_generation(pipeline.generator, natural_layout)
+                try:
+                    natural_generation = deterministic_generation(
+                        pipeline.generator, natural_layout
+                    )
+                    checks["natural_generation_valid"] = True
+                except GenerationFormatError as exc:
+                    row = _ineligible_row(
+                        provenance,
+                        sample=sample,
+                        stage="natural_generation_format",
+                        reason=str(exc),
+                        checks=checks,
+                        physical_gpu=physical_gpu,
+                        evidence=exc.evidence(),
+                    )
+                    _write_row(handle, row)
+                    counts["ineligible"] += 1
+                    continue
                 natural_success = attack_succeeds(sample, str(natural_generation["answer"]))
                 clean_layout = pipeline.generator.build_prompt(
                     sample.query, candidate_context(prepared.clean_selected)
@@ -296,9 +320,24 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                 original_forced_layout = pipeline.generator.build_prompt(
                     sample.query, original_forced_context
                 )
-                forced_generation = deterministic_generation(
-                    pipeline.generator, original_forced_layout
-                )
+                try:
+                    forced_generation = deterministic_generation(
+                        pipeline.generator, original_forced_layout
+                    )
+                    checks["forced_generation_valid"] = True
+                except GenerationFormatError as exc:
+                    row = _ineligible_row(
+                        provenance,
+                        sample=sample,
+                        stage="forced_generation_format",
+                        reason=str(exc),
+                        checks=checks,
+                        physical_gpu=physical_gpu,
+                        evidence=exc.evidence(),
+                    )
+                    _write_row(handle, row)
+                    counts["ineligible"] += 1
+                    continue
                 forced_success = attack_succeeds(sample, str(forced_generation["answer"]))
                 checks["actual_retrieval_hit"] = prepared.actual_retrieval_hit
                 checks["natural_end_to_end_success"] = natural_success

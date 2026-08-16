@@ -51,7 +51,7 @@ def v01_event_provenance(
     )
     value.update(
         {
-            "schema_version": 3,
+            "schema_version": 4,
             "protocol_id": "RGRD-V0.1-oracle-mechanism-audit",
             "experiment_config_sha256": sha256_file(
                 root / "configs/experiments/v0_1_preregistration.yaml"

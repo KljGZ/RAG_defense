@@ -28,6 +28,22 @@ class PreparedQuery:
     clean_selected: tuple[Candidate, ...]
 
 
+class GenerationFormatError(RuntimeError):
+    """A deterministic sample output that cannot satisfy the frozen answer format."""
+
+    def __init__(self, code: str, audit: object) -> None:
+        self.code = code
+        self.audit = audit
+        values = asdict(audit)
+        super().__init__(
+            f"{code}: generated_tokens={values['generated_tokens']} "
+            f"termination_token_id={values['termination_token_id']}"
+        )
+
+    def evidence(self) -> dict[str, object]:
+        return {"code": self.code, "audit": asdict(self.audit)}
+
+
 def _ranges_valid(text: str, ranges: Sequence[CharRange]) -> bool:
     ordered = sorted(ranges, key=lambda span: (span.start, span.end))
     return bool(ordered) and all(
@@ -213,11 +229,11 @@ def deterministic_generation(generator: object, layout: object) -> dict[str, obj
     if first != second:
         raise RuntimeError("strict deterministic generation contract was violated")
     if first.truncated:
-        raise RuntimeError("shadow generation reached max_new_tokens without EOS")
+        raise GenerationFormatError("max_new_tokens_without_eos", first)
     if not first.terminated_by_eos:
-        raise RuntimeError("shadow generation did not terminate with the configured EOS token")
+        raise GenerationFormatError("missing_configured_eos", first)
     if not first.strict_single_line:
-        raise RuntimeError("shadow generation violated the single FINAL_ANSWER line contract")
+        raise GenerationFormatError("not_exactly_one_nonempty_line", first)
     return asdict(first)
 
 

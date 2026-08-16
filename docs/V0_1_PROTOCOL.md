@@ -11,6 +11,17 @@ that passes only format, answer-validity, and anchor/payload co-chunk checks.
 Retrieval and generation outcomes are measured after sampling and are never
 used to select observations.
 
+Amendment V01-002 fixes an execution-contract defect found in the first V0.1
+attempt. Generation now honors the complete EOS set frozen in the checkpoint's
+`generation_config`, with the tokenizer EOS as a fallback; it does not narrow a
+multi-EOS model to one tokenizer token. The 32-token safety bound remains frozen.
+Each layout is still generated twice and must agree exactly. A deterministic output
+that reaches the bound without an accepted EOS, omits EOS, or violates the one-line
+answer format is recorded as explicit query attrition with decoded text, token IDs,
+the accepted EOS set, and the termination token. It does not terminate sibling
+workers. A determinism mismatch, precision-contract mismatch, non-finite score, or
+unhandled exception remains fatal for the run.
+
 For the two Oracle players anchor (A) and payload (P), V0.1 evaluates the four
 coalitions empty, A, P, and A+P.  The retrieval value is the frozen two-stage
 bottleneck margin.  The generation value is target mean token log-probability

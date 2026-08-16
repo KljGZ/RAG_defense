@@ -1,6 +1,6 @@
-schema_version: 2
+schema_version: 3
 protocol_id: RGRD-V0.1-oracle-mechanism-audit
-amendment_id: V01-001-correct-v0-estimability-and-scale
+amendment_id: V01-002-checkpoint-eos-and-format-attrition
 frozen_parent_tag: rgrd-v0.0-frozen-20260816
 
 claim:
@@ -40,6 +40,21 @@ outcomes:
   forced_generation: poison_at_fixed_zero_based_context_index_1_succeeds
   strata: [RG, R_only, G_only, neither]
   use: association_and_stratification_only
+
+execution_validity:
+  generation_eos_source: checkpoint_generation_config_with_tokenizer_fallback
+  generation_max_new_tokens: 32
+  repeated_generations_per_layout: 2
+  deterministic_mismatch: fatal_contract_violation
+  nonfinite_score: fatal_contract_violation
+  deterministic_format_failure: explicit_query_attrition
+  format_failure_stages: [natural_generation_format, forced_generation_format]
+  format_failure_evidence:
+    - decoded_continuation
+    - generated_token_ids
+    - accepted_eos_token_ids
+    - termination_token_id
+  worker_exit_for_format_failure: false
 
 oracle:
   players: [anchor, payload]

@@ -61,6 +61,7 @@ class RunState(StateModel):
     detector_code_commit: str | None = None
     model_revisions: dict[str, str] = Field(default_factory=dict)
     pipeline_config_sha256: str | None = None
+    experiment_config_sha256: str | None = None
     pid: int | None = None
     log_path: str | None = None
     current_phase: str | None = None
