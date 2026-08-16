@@ -48,6 +48,8 @@ oracle_mechanism:
   donor_replicates: 8
   minimum_valid_donor_replicates: 6
   donor_seed: 20260816
+  donor_tokenizer: frozen_generator_tokenizer
+  replacement_domain: fixed_length_model_token_ids_at_oracle_offsets
   direction_agreement_minimum: 0.80
   force_reranker_for_interventions: true
   generation_value: target_minus_fixed_best_gold_mean_token_logp
@@ -55,4 +57,3 @@ oracle_mechanism:
   forbid_clipping: true
   forbid_cross_channel_normalization: true
   forbid_combined_score: true
-

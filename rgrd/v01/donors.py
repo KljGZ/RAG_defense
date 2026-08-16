@@ -212,9 +212,7 @@ class DeterministicDonorSampler:
         validate_disjoint_ranges(original_text, anchor_ranges, payload_ranges)
         anchor_targets = [original_text[span.start : span.end] for span in anchor_ranges]
         payload_targets = [original_text[span.start : span.end] for span in payload_ranges]
-        original_token_length = token_length(self.tokenizer, original_text)
-        rejected_pairs = 0
-        while len(pairs) < replicates:
+        for replicate in range(replicates):
             anchor = tuple(
                 self._segment(
                     length=int(length),
@@ -239,39 +237,5 @@ class DeterministicDonorSampler:
                 )
                 for length, target in zip(payload_lengths, payload_targets, strict=True)
             )
-            candidate = DonorPair(replicate=len(pairs), anchor=anchor, payload=payload)
-            coalition_texts = (
-                replace_oracle_groups(
-                    original_text,
-                    anchor_ranges=anchor_ranges,
-                    payload_ranges=payload_ranges,
-                    anchor_replacements=[segment.text for segment in anchor],
-                    payload_replacements=[segment.text for segment in payload],
-                ),
-                replace_oracle_groups(
-                    original_text,
-                    anchor_ranges=anchor_ranges,
-                    payload_ranges=payload_ranges,
-                    anchor_replacements=None,
-                    payload_replacements=[segment.text for segment in payload],
-                ),
-                replace_oracle_groups(
-                    original_text,
-                    anchor_ranges=anchor_ranges,
-                    payload_ranges=payload_ranges,
-                    anchor_replacements=[segment.text for segment in anchor],
-                    payload_replacements=None,
-                ),
-            )
-            if any(
-                token_length(self.tokenizer, text) != original_token_length
-                for text in coalition_texts
-            ):
-                rejected_pairs += 1
-                if rejected_pairs > 512:
-                    raise RuntimeError(
-                        "could not satisfy full-coalition exact-token-length donor contract"
-                    )
-                continue
-            pairs.append(candidate)
+            pairs.append(DonorPair(replicate=replicate, anchor=anchor, payload=payload))
         return tuple(pairs)

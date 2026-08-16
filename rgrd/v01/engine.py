@@ -10,7 +10,7 @@ from rgrd.ingestion import chunk_source
 from rgrd.pipeline.track_b import Candidate, TrackBPipeline
 from rgrd.retrieval import freeze_thresholds, pipeline_margin
 from rgrd.schema import CharRange, ChunkLineage
-from rgrd.v01.donors import DonorPair, replace_oracle_groups, validate_disjoint_ranges
+from rgrd.v01.donors import DonorPair, validate_disjoint_ranges
 
 
 @dataclass(frozen=True)
@@ -239,12 +239,21 @@ def generation_margin(
     fixed_gold: str,
     chunk_id: str | None = None,
     hidden_spans: Sequence[CharRange] | None = None,
+    replacement_spans: Sequence[CharRange] | None = None,
+    replacement_texts: Sequence[str] | None = None,
 ) -> tuple[float, float, float]:
-    kwargs = (
-        {"chunk_id": chunk_id, "hidden_spans": hidden_spans}
-        if hidden_spans
-        else {}
-    )
+    if hidden_spans and replacement_spans:
+        raise ValueError("generation coalition cannot mask and replace simultaneously")
+    if hidden_spans:
+        kwargs = {"chunk_id": chunk_id, "hidden_spans": hidden_spans}
+    elif replacement_spans:
+        kwargs = {
+            "chunk_id": chunk_id,
+            "replacement_spans": replacement_spans,
+            "replacement_texts": replacement_texts,
+        }
+    else:
+        kwargs = {}
     target_score = float(generator.teacher_score(layout, target, **kwargs))
     gold_score = float(generator.teacher_score(layout, fixed_gold, **kwargs))
     margin = target_score - gold_score
@@ -253,49 +262,42 @@ def generation_margin(
     return float(margin), target_score, gold_score
 
 
-def donor_coalition_texts(
+def donor_interventions(
     chunk: ChunkLineage,
     pair: DonorPair,
-) -> dict[str, str]:
+) -> dict[str, tuple[list[CharRange], list[str]]]:
     anchor = [segment.text for segment in pair.anchor]
     payload = [segment.text for segment in pair.payload]
-    common = {
-        "text": chunk.text,
-        "anchor_ranges": chunk.anchor_ranges_chunk,
-        "payload_ranges": chunk.payload_ranges_chunk,
-    }
     return {
-        "empty": replace_oracle_groups(
-            **common,
-            anchor_replacements=anchor,
-            payload_replacements=payload,
+        "empty": (
+            [*chunk.anchor_ranges_chunk, *chunk.payload_ranges_chunk],
+            [*anchor, *payload],
         ),
-        "anchor": replace_oracle_groups(
-            **common,
-            anchor_replacements=None,
-            payload_replacements=payload,
-        ),
-        "payload": replace_oracle_groups(
-            **common,
-            anchor_replacements=anchor,
-            payload_replacements=None,
-        ),
-        "both": chunk.text,
+        "anchor": (list(chunk.payload_ranges_chunk), payload),
+        "payload": (list(chunk.anchor_ranges_chunk), anchor),
+        "both": ([], []),
     }
 
 
-def retrieval_values_for_texts(
+def retrieval_values_for_interventions(
     pipeline: TrackBPipeline,
     prepared: PreparedQuery,
     query: str,
-    texts: Mapping[str, str],
+    interventions: Mapping[str, tuple[Sequence[CharRange], Sequence[str]]],
 ) -> dict[str, dict[str, float]]:
-    keys = list(texts)
-    embeddings = pipeline.retriever.encode([texts[key] for key in keys])
-    rerank = pipeline.reranker.score_pairs(query, [texts[key] for key in keys])
     result: dict[str, dict[str, float]] = {}
-    for key, embedding, rerank_score in zip(keys, embeddings, rerank, strict=True):
-        dense_score = pipeline.retriever.score(prepared.query_embedding, embedding)
+    for key, (spans, donor_texts) in interventions.items():
+        if spans:
+            embedding = pipeline.retriever.encode_replaced_ranges(
+                prepared.poison_chunk.text, spans, donor_texts
+            )
+            rerank_score = pipeline.reranker.score_replaced_ranges(
+                query, prepared.poison_chunk.text, spans, donor_texts
+            )
+            dense_score = pipeline.retriever.score(prepared.query_embedding, embedding)
+        else:
+            dense_score = prepared.poison_dense_score
+            rerank_score = prepared.poison_rerank_score
         margin = pipeline_margin(dense_score, float(rerank_score), prepared.frozen)
         if not np.all(np.isfinite([dense_score, rerank_score, margin])):
             raise FloatingPointError("retrieval coalition contains non-finite values")

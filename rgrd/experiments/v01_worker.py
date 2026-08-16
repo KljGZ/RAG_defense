@@ -19,19 +19,17 @@ from rgrd.pipeline.track_b import TrackBPipeline
 from rgrd.schema import CharRange
 from rgrd.v01.donors import (
     DeterministicDonorSampler,
-    oracle_token_lengths,
-    token_length,
 )
 from rgrd.v01.engine import (
     candidate_context,
     deterministic_generation,
-    donor_coalition_texts,
+    donor_interventions,
     forced_context,
     generation_margin,
     mask_retrieval_values,
     oracle_cochunk,
     prepare_query,
-    retrieval_values_for_texts,
+    retrieval_values_for_interventions,
     select_fixed_gold_alias,
 )
 from rgrd.v01.protocol import canonical_per_query, valid_distinct_answers
@@ -306,15 +304,15 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                 checks["natural_end_to_end_success"] = natural_success
                 checks["forced_context_success"] = forced_success
 
-                anchor_lengths = oracle_token_lengths(
-                    pipeline.generator.tokenizer,
-                    poison_chunk.text,
-                    poison_chunk.anchor_ranges_chunk,
+                anchor_lengths = pipeline.generator.intervention_token_lengths(
+                    original_forced_layout,
+                    chunk_id=poison_chunk.chunk_id,
+                    spans=poison_chunk.anchor_ranges_chunk,
                 )
-                payload_lengths = oracle_token_lengths(
-                    pipeline.generator.tokenizer,
-                    poison_chunk.text,
-                    poison_chunk.payload_ranges_chunk,
+                payload_lengths = pipeline.generator.intervention_token_lengths(
+                    original_forced_layout,
+                    chunk_id=poison_chunk.chunk_id,
+                    spans=poison_chunk.payload_ranges_chunk,
                 )
                 relevant_sources = {
                     doc_id
@@ -333,49 +331,45 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                     replicates=int(donor_config["donor_replicates"]),
                 )
 
-                texts_by_key: dict[str, str] = {}
-                coalitions_by_replicate: dict[int, dict[str, str]] = {}
-                for pair in donor_pairs:
-                    coalitions = donor_coalition_texts(poison_chunk, pair)
-                    coalitions_by_replicate[pair.replicate] = coalitions
-                    for coalition, text in coalitions.items():
-                        texts_by_key[f"{pair.replicate}:{coalition}"] = text
-                retrieval_all = retrieval_values_for_texts(
-                    pipeline, prepared, sample.query, texts_by_key
+                full_generation_margin, full_target_score, full_gold_score = generation_margin(
+                    pipeline.generator,
+                    original_forced_layout,
+                    target=sample.target_answer,
+                    fixed_gold=fixed_gold,
                 )
-                generation_cache: dict[str, dict[str, float]] = {}
+                full_generation = {
+                    "value": full_generation_margin,
+                    "target_mean_logp": full_target_score,
+                    "gold_mean_logp": full_gold_score,
+                }
                 replicate_rows: list[dict[str, Any]] = []
                 contrasts = []
                 for pair in donor_pairs:
                     names = ("empty", "anchor", "payload", "both")
-                    retrieval = {
-                        name: retrieval_all[f"{pair.replicate}:{name}"] for name in names
-                    }
+                    interventions = donor_interventions(poison_chunk, pair)
+                    retrieval = retrieval_values_for_interventions(
+                        pipeline, prepared, sample.query, interventions
+                    )
                     generation: dict[str, dict[str, float]] = {}
                     for name in names:
-                        coalition_text = coalitions_by_replicate[pair.replicate][name]
-                        if coalition_text not in generation_cache:
-                            layout = pipeline.generator.build_prompt(
-                                sample.query,
-                                forced_context(
-                                    prepared,
-                                    coalition_text,
-                                    fixed_zero_based_index=fixed_index,
-                                    top_k=pipeline.rerank_top_k,
-                                ),
-                            )
+                        spans, donor_texts = interventions[name]
+                        if spans:
                             margin, target_score, gold_score = generation_margin(
                                 pipeline.generator,
-                                layout,
+                                original_forced_layout,
                                 target=sample.target_answer,
                                 fixed_gold=fixed_gold,
+                                chunk_id=poison_chunk.chunk_id,
+                                replacement_spans=spans,
+                                replacement_texts=donor_texts,
                             )
-                            generation_cache[coalition_text] = {
+                            generation[name] = {
                                 "value": margin,
                                 "target_mean_logp": target_score,
                                 "gold_mean_logp": gold_score,
                             }
-                        generation[name] = generation_cache[coalition_text]
+                        else:
+                            generation[name] = full_generation
                     contrast = oracle_contrast(
                         _coalition(retrieval), _coalition(generation)
                     )
@@ -491,10 +485,10 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                         ],
                         "anchor_token_lengths": list(anchor_lengths),
                         "payload_token_lengths": list(payload_lengths),
-                        "full_chunk_token_length": token_length(
-                            pipeline.generator.tokenizer, poison_chunk.text
+                        "donor_tokenizer": str(
+                            pipeline.generator.tokenizer.name_or_path
                         ),
-                        "all_donor_coalitions_preserve_full_token_length": True,
+                        "token_level_replacement_preserves_model_sequence_length": True,
                     },
                     "outcomes": {
                         "actual_retrieval_hit": prepared.actual_retrieval_hit,

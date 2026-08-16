@@ -21,7 +21,10 @@ the scale-preserving contrasts
 `C_R = phi_A^R - phi_P^R` and `C_G = phi_P^G - phi_A^G`.
 
 The primary intervention is the median of eight deterministic, exact-token-
-length, benign donor-pair replacements.  At least six pairs must be finite.
+length, benign donor-pair replacements. Donor length is matched at the Oracle
+offsets under the frozen generator/chunker tokenizer; replacement is then applied
+directly to the fixed token positions of each frozen model, so every coalition keeps
+that model's sequence length and positional indices unchanged. At least six pairs must be finite.
 Attention-hole masking is a direction-only robustness check.  There is no
 positive clipping, per-channel normalization, combined score, or reuse of the
 legacy `T_RG` statistic.

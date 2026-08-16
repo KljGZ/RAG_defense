@@ -124,6 +124,18 @@ def _replacement_ids(tokenizer: Any, donor_text: str, length: int) -> list[int]:
     return [int(value) for value in values[:length]]
 
 
+def _exact_replacement_ids(tokenizer: Any, donor_text: str, length: int) -> list[int]:
+    values = _replacement_ids(tokenizer, donor_text, length)
+    encoded = tokenizer(donor_text, add_special_tokens=False, truncation=False)["input_ids"]
+    if encoded and isinstance(encoded[0], list):
+        encoded = encoded[0]
+    if len(encoded) != length:
+        raise ValueError(
+            f"V0.1 donor has {len(encoded)} tokens but intervention requires exactly {length}"
+        )
+    return values
+
+
 class DenseRetriever:
     """Contriever-compatible dense encoder with intervention-aware mean pooling."""
 
@@ -204,7 +216,17 @@ class DenseRetriever:
         return self._forward(encoded)[0].cpu().numpy().astype(np.float32, copy=False)
 
     def encode_replaced(self, text: str, span: CharRange, donor_text: str) -> np.ndarray:
+        return self.encode_replaced_ranges(text, [span], [donor_text])
+
+    def encode_replaced_ranges(
+        self,
+        text: str,
+        spans: Sequence[CharRange],
+        donor_texts: Sequence[str],
+    ) -> np.ndarray:
         torch = _torch()
+        if len(spans) != len(donor_texts) or not spans:
+            raise ValueError("replacement spans and donor texts must have equal non-zero length")
         encoded = self.tokenizer(
             text,
             padding=False,
@@ -214,10 +236,15 @@ class DenseRetriever:
             return_tensors="pt",
         )
         offsets = encoded.pop("offset_mapping")[0].tolist()
-        indices = _overlap_indices(offsets, span)
-        replacements = _replacement_ids(self.tokenizer, donor_text, len(indices))
         encoded["input_ids"] = encoded["input_ids"].clone()
-        encoded["input_ids"][0, indices] = torch.tensor(replacements, dtype=torch.long)
+        used: set[int] = set()
+        for span, donor_text in zip(spans, donor_texts, strict=True):
+            indices = _overlap_indices(offsets, span)
+            if used & set(indices):
+                raise ValueError("replacement spans overlap in retriever token space")
+            used.update(indices)
+            replacements = _replacement_ids(self.tokenizer, donor_text, len(indices))
+            encoded["input_ids"][0, indices] = torch.tensor(replacements, dtype=torch.long)
         return self._forward(encoded)[0].cpu().numpy().astype(np.float32, copy=False)
 
     @staticmethod
@@ -315,7 +342,18 @@ class CrossEncoderReranker:
         return float(self._score_encoded(encoded)[0])
 
     def score_replaced(self, query: str, chunk: str, span: CharRange, donor_text: str) -> float:
+        return self.score_replaced_ranges(query, chunk, [span], [donor_text])
+
+    def score_replaced_ranges(
+        self,
+        query: str,
+        chunk: str,
+        spans: Sequence[CharRange],
+        donor_texts: Sequence[str],
+    ) -> float:
         torch = _torch()
+        if len(spans) != len(donor_texts) or not spans:
+            raise ValueError("replacement spans and donor texts must have equal non-zero length")
         encoded = self.tokenizer(
             query,
             chunk,
@@ -330,10 +368,15 @@ class CrossEncoderReranker:
         chunk_indices = [
             index for index, sequence_id in enumerate(sequence_ids) if sequence_id == 1
         ]
-        indices = _overlap_indices(offsets, span, eligible=chunk_indices)
-        replacements = _replacement_ids(self.tokenizer, donor_text, len(indices))
         encoded["input_ids"] = encoded["input_ids"].clone()
-        encoded["input_ids"][0, indices] = torch.tensor(replacements, dtype=torch.long)
+        used: set[int] = set()
+        for span, donor_text in zip(spans, donor_texts, strict=True):
+            indices = _overlap_indices(offsets, span, eligible=chunk_indices)
+            if used & set(indices):
+                raise ValueError("replacement spans overlap in reranker token space")
+            used.update(indices)
+            replacements = _replacement_ids(self.tokenizer, donor_text, len(indices))
+            encoded["input_ids"][0, indices] = torch.tensor(replacements, dtype=torch.long)
         return float(self._score_encoded(encoded)[0])
 
 
@@ -484,6 +527,37 @@ class CausalAnswerGenerator:
         audit = self.generate_shadow_audited(layout)
         return audit.answer, audit.continuation
 
+    def intervention_token_lengths(
+        self,
+        layout: PromptLayout,
+        *,
+        chunk_id: str,
+        spans: Sequence[CharRange],
+    ) -> tuple[int, ...]:
+        if chunk_id not in layout.chunk_ranges or not spans:
+            raise ValueError("intervention token lengths require a mapped chunk and spans")
+        encoded = self.tokenizer(
+            layout.prompt,
+            return_offsets_mapping=True,
+            add_special_tokens=True,
+        )
+        offsets = encoded["offset_mapping"]
+        if offsets and isinstance(offsets[0], list) and offsets[0] and isinstance(
+            offsets[0][0], list
+        ):
+            offsets = offsets[0]
+        chunk_range = layout.chunk_ranges[chunk_id]
+        lengths: list[int] = []
+        for span in spans:
+            prompt_span = CharRange(
+                start=chunk_range.start + span.start,
+                end=chunk_range.start + span.end,
+            )
+            if prompt_span.end > chunk_range.end:
+                raise ValueError("intervention span exceeds the target chunk")
+            lengths.append(len(_overlap_indices(offsets, prompt_span)))
+        return tuple(lengths)
+
     def teacher_score(
         self,
         layout: PromptLayout,
@@ -493,6 +567,8 @@ class CausalAnswerGenerator:
         hidden_span: CharRange | None = None,
         hidden_spans: Sequence[CharRange] | None = None,
         donor_text: str | None = None,
+        replacement_spans: Sequence[CharRange] | None = None,
+        replacement_texts: Sequence[str] | None = None,
     ) -> float:
         torch = _torch()
         suffix = answer
@@ -510,12 +586,48 @@ class CausalAnswerGenerator:
         answer_mask[0, answer_indices] = True
         if hidden_span is not None and hidden_spans is not None:
             raise ValueError("use hidden_span or hidden_spans, not both")
+        has_replacements = replacement_spans is not None or replacement_texts is not None
+        if has_replacements and (
+            hidden_span is not None or hidden_spans is not None or donor_text is not None
+        ):
+            raise ValueError("V0.1 replacements cannot be combined with legacy interventions")
+        if has_replacements:
+            if replacement_spans is None or replacement_texts is None:
+                raise ValueError("replacement_spans and replacement_texts are both required")
+            if len(replacement_spans) != len(replacement_texts) or not replacement_spans:
+                raise ValueError("replacement spans/texts must have equal non-zero length")
+            if chunk_id is None or chunk_id not in layout.chunk_ranges:
+                raise ValueError("replacement intervention requires a mapped chunk_id")
+            chunk_range = layout.chunk_ranges[chunk_id]
+            encoded["input_ids"] = encoded["input_ids"].clone()
+            used: set[int] = set()
+            for span, replacement_text in zip(
+                replacement_spans, replacement_texts, strict=True
+            ):
+                prompt_span = CharRange(
+                    start=chunk_range.start + span.start,
+                    end=chunk_range.start + span.end,
+                )
+                if prompt_span.end > chunk_range.end:
+                    raise ValueError("replacement span exceeds the target chunk")
+                indices = _overlap_indices(offsets, prompt_span)
+                if used & set(indices):
+                    raise ValueError("replacement spans overlap in generator token space")
+                if set(indices) & set(answer_indices):
+                    raise AssertionError("chunk replacement overlaps answer tokens")
+                used.update(indices)
+                replacements = _exact_replacement_ids(
+                    self.tokenizer, replacement_text, len(indices)
+                )
+                encoded["input_ids"][0, indices] = torch.tensor(
+                    replacements, dtype=torch.long
+                )
         intervention_spans = (
             list(hidden_spans)
             if hidden_spans is not None
             else ([] if hidden_span is None else [hidden_span])
         )
-        if intervention_spans:
+        if intervention_spans and not has_replacements:
             if chunk_id is None or chunk_id not in layout.chunk_ranges:
                 raise ValueError("hidden intervention requires a mapped chunk_id")
             chunk_range = layout.chunk_ranges[chunk_id]
