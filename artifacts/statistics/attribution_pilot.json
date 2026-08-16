@@ -1,0 +1,134 @@
+{
+  "captured_at": "2026-08-16T09:04:26.995940+00:00",
+  "dataset": "nq",
+  "detector_inputs_label_free": true,
+  "queries": 5,
+  "rows": [
+    {
+      "chunks": [
+        {
+          "chunk_id": "cb04a98a0e62abd7320a7d1a",
+          "generation_mass": 0.002251148223876953,
+          "retrieval_mass": 15.575452315633513,
+          "role_identifiable": true,
+          "t_rg": 1.0
+        },
+        {
+          "chunk_id": "b004e34f49a15f8945724c1b",
+          "generation_mass": 0.0,
+          "retrieval_mass": 28.370825121116948,
+          "role_identifiable": false,
+          "t_rg": 0.0
+        }
+      ],
+      "query_id": "test0",
+      "query_score": 1.0,
+      "role_identifiable": true,
+      "selected_for_generation": [
+        "b004e34f49a15f8945724c1b",
+        "cb04a98a0e62abd7320a7d1a"
+      ]
+    },
+    {
+      "chunks": [
+        {
+          "chunk_id": "84b094d53852b7b5a45bb3fa",
+          "generation_mass": 0.0,
+          "retrieval_mass": 17.70296472956243,
+          "role_identifiable": false,
+          "t_rg": 0.0
+        },
+        {
+          "chunk_id": "b8ee41a22219e8bae73696c0",
+          "generation_mass": 1.5659340228885412,
+          "retrieval_mass": 22.08364423480336,
+          "role_identifiable": true,
+          "t_rg": 0.14250522123028542
+        }
+      ],
+      "query_id": "test1",
+      "query_score": 0.14250522123028542,
+      "role_identifiable": true,
+      "selected_for_generation": [
+        "84b094d53852b7b5a45bb3fa",
+        "b8ee41a22219e8bae73696c0"
+      ]
+    },
+    {
+      "chunks": [
+        {
+          "chunk_id": "48a58574932ee667fc6d5e24",
+          "generation_mass": 0.024648102931678295,
+          "retrieval_mass": 9.094060114760948,
+          "role_identifiable": true,
+          "t_rg": 0.4776144341711523
+        },
+        {
+          "chunk_id": "a735be9a02fbb397994eceeb",
+          "generation_mass": 0.30952451552730054,
+          "retrieval_mass": 4.31112269944431,
+          "role_identifiable": true,
+          "t_rg": 0.5873826695629724
+        }
+      ],
+      "query_id": "test10",
+      "query_score": 0.5873826695629724,
+      "role_identifiable": true,
+      "selected_for_generation": [
+        "48a58574932ee667fc6d5e24",
+        "a735be9a02fbb397994eceeb"
+      ]
+    },
+    {
+      "chunks": [
+        {
+          "chunk_id": "d44985784f497f04bd0f5383",
+          "generation_mass": 1.7766691595315933,
+          "retrieval_mass": 17.466797371312595,
+          "role_identifiable": true,
+          "t_rg": 0.09643580393902257
+        },
+        {
+          "chunk_id": "2ae15204d74134c940e9930e",
+          "generation_mass": 0.21399366855621338,
+          "retrieval_mass": 12.781963971312791,
+          "role_identifiable": true,
+          "t_rg": 0.8626198325561287
+        }
+      ],
+      "query_id": "test100",
+      "query_score": 0.8626198325561287,
+      "role_identifiable": true,
+      "selected_for_generation": [
+        "2ae15204d74134c940e9930e",
+        "d44985784f497f04bd0f5383"
+      ]
+    },
+    {
+      "chunks": [
+        {
+          "chunk_id": "a9e0ce2419ceae1bfa259629",
+          "generation_mass": 0.17057162523269653,
+          "retrieval_mass": 8.239286677104285,
+          "role_identifiable": true,
+          "t_rg": 0.12001809203819608
+        },
+        {
+          "chunk_id": "5a7c44e46be2e1d6e28ca9f7",
+          "generation_mass": 0.23812109231948853,
+          "retrieval_mass": 8.910449152036039,
+          "role_identifiable": true,
+          "t_rg": 0.342283617598011
+        }
+      ],
+      "query_id": "test1000",
+      "query_score": 0.342283617598011,
+      "role_identifiable": true,
+      "selected_for_generation": [
+        "5a7c44e46be2e1d6e28ca9f7",
+        "a9e0ce2419ceae1bfa259629"
+      ]
+    }
+  ],
+  "schema_version": 1
+}

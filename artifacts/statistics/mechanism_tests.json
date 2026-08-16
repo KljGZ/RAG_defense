@@ -1,0 +1,50 @@
+{
+  "available_counts": {
+    "PoisonedRAG-B": 92,
+    "PoisonedRAG-W": 89
+  },
+  "detector_code_commit": "8cf9aecaa8936a324abaa8c3815aa62c1fa92142",
+  "gate_3": {
+    "missing": {
+      "PoisonedRAG-B": {
+        "available": 92,
+        "required": 100
+      },
+      "PoisonedRAG-W": {
+        "available": 89,
+        "required": 100
+      }
+    },
+    "passed": false,
+    "reason": "successful co-chunk/reranked/end-to-end event quota not met"
+  },
+  "model_revisions": {
+    "generator": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "reranker": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+    "retriever": "2bd46a25019aeea091fd42d1f0fd4801675cf699"
+  },
+  "pipeline_config_sha256": "c03fe7bfa40d3de3d23ebbf69a139909ffc766bb091e55a761a96375f5c4773a",
+  "protocol_scope": {
+    "active_attack_families": [
+      "PoisonedRAG-B",
+      "PoisonedRAG-W"
+    ],
+    "amendment_id": "PA-001-exclude-phantom",
+    "amendment_reason": "User-directed scope narrowing after Gate 1 found no non-empty optimized Phantom s_gen span.",
+    "claim_boundary": "Post-hoc PoisonedRAG-B/W-only evidence; no conclusion may be generalized to Phantom or all modular RAG attacks.",
+    "detection_quotas": {
+      "PoisonedRAG-B": 50,
+      "PoisonedRAG-W": 50
+    },
+    "excluded_attack_families": [
+      "Phantom"
+    ],
+    "mechanism_quotas": {
+      "PoisonedRAG-B": 100,
+      "PoisonedRAG-W": 100
+    },
+    "prior_failed_run": "rgrd-v0-20260814T190433Z",
+    "protocol_id": "rgrd-v0-poisonedrag-only-amendment-1"
+  },
+  "schema_version": 2
+}

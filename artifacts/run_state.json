@@ -1,0 +1,592 @@
+{
+  "schema_version": 1,
+  "run_id": "rgrd-v0-20260816T080158Z",
+  "status": "failed",
+  "root": "/mnt/data/jkl/RGRD_V0",
+  "detector_code_commit": "8cf9aecaa8936a324abaa8c3815aa62c1fa92142",
+  "model_revisions": {
+    "retriever": "2bd46a25019aeea091fd42d1f0fd4801675cf699",
+    "reranker": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+    "generator": "a09a35458c702b33eeacc393d103063234e8bc28"
+  },
+  "pipeline_config_sha256": "c03fe7bfa40d3de3d23ebbf69a139909ffc766bb091e55a761a96375f5c4773a",
+  "pid": 2075532,
+  "log_path": "/mnt/data/jkl/RGRD_V0/artifacts/logs/runner.log",
+  "current_phase": null,
+  "created_at": "2026-08-16T08:01:58.032848+00:00",
+  "updated_at": "2026-08-16T09:47:28.615483+00:00",
+  "phases": {
+    "phase_0_provenance": {
+      "phase": "phase_0_provenance",
+      "status": "passed",
+      "started_at": "2026-08-16T08:01:58.040134+00:00",
+      "finished_at": "2026-08-16T08:47:33.466815+00:00",
+      "progress": {
+        "active_command": "phase0-pytest",
+        "active_pid": 2077298,
+        "heartbeat": "2026-08-16T08:47:33.460044+00:00",
+        "active_group": "phase0-model-preflight",
+        "gpu_admission": {
+          "allowed_physical_gpus": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "excluded_physical_gpus": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "base_min_free_mib": 19000,
+          "pending": [],
+          "running": {},
+          "completed": [
+            "single"
+          ],
+          "oom_retries": {
+            "single": 0
+          },
+          "required_free_mib": {
+            "single": 19000
+          },
+          "gpu_memory_mib": {
+            "0": {
+              "total": 24564,
+              "free": 10742
+            },
+            "1": {
+              "total": 24564,
+              "free": 8022
+            },
+            "2": {
+              "total": 24564,
+              "free": 8704
+            },
+            "3": {
+              "total": 24564,
+              "free": 8258
+            },
+            "4": {
+              "total": 24564,
+              "free": 19456
+            },
+            "5": {
+              "total": 24564,
+              "free": 19504
+            },
+            "6": {
+              "total": 24564,
+              "free": 19584
+            },
+            "7": {
+              "total": 24564,
+              "free": 19656
+            }
+          },
+          "quarantined_gpus": []
+        },
+        "upstream_runtime_lock": "/mnt/data/jkl/RGRD_V0/artifacts/provenance/upstreams.runtime.yaml",
+        "model_runtime_lock": "/mnt/data/jkl/RGRD_V0/artifacts/provenance/models.runtime.yaml",
+        "environment": "/mnt/data/jkl/RGRD_V0/artifacts/provenance/rgrd_environment.json",
+        "joint_environment": "/mnt/data/jkl/RGRD_V0/artifacts/provenance/joint_gcg_environment.json",
+        "tests": "passed",
+        "models": "passed",
+        "protocol_scope": {
+          "protocol_id": "rgrd-v0-poisonedrag-only-amendment-1",
+          "amendment_id": "PA-001-exclude-phantom",
+          "prior_failed_run": "rgrd-v0-20260814T190433Z",
+          "amendment_reason": "User-directed scope narrowing after Gate 1 found no non-empty optimized Phantom s_gen span.",
+          "claim_boundary": "Post-hoc PoisonedRAG-B/W-only evidence; no conclusion may be generalized to Phantom or all modular RAG attacks.",
+          "active_attack_families": [
+            "PoisonedRAG-B",
+            "PoisonedRAG-W"
+          ],
+          "excluded_attack_families": [
+            "Phantom"
+          ],
+          "mechanism_quotas": {
+            "PoisonedRAG-B": 100,
+            "PoisonedRAG-W": 100
+          },
+          "detection_quotas": {
+            "PoisonedRAG-B": 50,
+            "PoisonedRAG-W": 50
+          }
+        }
+      },
+      "error": null
+    },
+    "phase_1_attack_audit": {
+      "phase": "phase_1_attack_audit",
+      "status": "passed",
+      "started_at": "2026-08-16T08:47:33.511720+00:00",
+      "finished_at": "2026-08-16T08:50:34.516976+00:00",
+      "progress": {
+        "active_group": "phase1-poisonedrag-whitebox-smoke",
+        "gpu_admission": {
+          "allowed_physical_gpus": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "excluded_physical_gpus": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "base_min_free_mib": 19000,
+          "pending": [],
+          "running": {},
+          "completed": [
+            "single"
+          ],
+          "oom_retries": {
+            "single": 0
+          },
+          "required_free_mib": {
+            "single": 19000
+          },
+          "gpu_memory_mib": {
+            "0": {
+              "total": 24564,
+              "free": 10742
+            },
+            "1": {
+              "total": 24564,
+              "free": 8022
+            },
+            "2": {
+              "total": 24564,
+              "free": 8704
+            },
+            "3": {
+              "total": 24564,
+              "free": 8258
+            },
+            "4": {
+              "total": 24564,
+              "free": 19456
+            },
+            "5": {
+              "total": 24564,
+              "free": 19504
+            },
+            "6": {
+              "total": 24564,
+              "free": 19584
+            },
+            "7": {
+              "total": 24564,
+              "free": 19656
+            }
+          },
+          "quarantined_gpus": []
+        },
+        "heartbeat": "2026-08-16T08:50:04.481570+00:00",
+        "active_command": "phase1-reproduction-audit",
+        "active_pid": 2082004,
+        "whitebox_smoke": 20,
+        "audit": "PASS"
+      },
+      "error": null
+    },
+    "phase_2_deterministic_pipeline": {
+      "phase": "phase_2_deterministic_pipeline",
+      "status": "passed",
+      "started_at": "2026-08-16T08:50:34.551164+00:00",
+      "finished_at": "2026-08-16T08:56:06.940203+00:00",
+      "progress": {
+        "active_command": "phase2-pytest",
+        "active_pid": 2082394,
+        "heartbeat": "2026-08-16T08:56:06.936757+00:00",
+        "active_group": "phase2-determinism",
+        "gpu_admission": {
+          "allowed_physical_gpus": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "excluded_physical_gpus": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "base_min_free_mib": 19000,
+          "pending": [],
+          "running": {},
+          "completed": [
+            "single"
+          ],
+          "oom_retries": {
+            "single": 0
+          },
+          "required_free_mib": {
+            "single": 19000
+          },
+          "gpu_memory_mib": {
+            "0": {
+              "total": 24564,
+              "free": 10742
+            },
+            "1": {
+              "total": 24564,
+              "free": 8022
+            },
+            "2": {
+              "total": 24564,
+              "free": 8704
+            },
+            "3": {
+              "total": 24564,
+              "free": 8258
+            },
+            "4": {
+              "total": 24564,
+              "free": 19456
+            },
+            "5": {
+              "total": 24564,
+              "free": 19504
+            },
+            "6": {
+              "total": 24564,
+              "free": 19584
+            },
+            "7": {
+              "total": 24564,
+              "free": 19656
+            }
+          },
+          "quarantined_gpus": []
+        },
+        "nq_index_chunks": 2844238,
+        "determinism_queries": 20
+      },
+      "error": null
+    },
+    "phase_3_span_intervention": {
+      "phase": "phase_3_span_intervention",
+      "status": "passed",
+      "started_at": "2026-08-16T08:56:07.016788+00:00",
+      "finished_at": "2026-08-16T09:02:09.531613+00:00",
+      "progress": {
+        "active_group": "phase3-noop-noise",
+        "gpu_admission": {
+          "allowed_physical_gpus": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "excluded_physical_gpus": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "base_min_free_mib": 19000,
+          "pending": [],
+          "running": {},
+          "completed": [
+            "single"
+          ],
+          "oom_retries": {
+            "single": 0
+          },
+          "required_free_mib": {
+            "single": 19000
+          },
+          "gpu_memory_mib": {
+            "0": {
+              "total": 24564,
+              "free": 10742
+            },
+            "1": {
+              "total": 24564,
+              "free": 8022
+            },
+            "2": {
+              "total": 24564,
+              "free": 8704
+            },
+            "3": {
+              "total": 24564,
+              "free": 8258
+            },
+            "4": {
+              "total": 24564,
+              "free": 19456
+            },
+            "5": {
+              "total": 24564,
+              "free": 19504
+            },
+            "6": {
+              "total": 24564,
+              "free": 19584
+            },
+            "7": {
+              "total": 24564,
+              "free": 19656
+            }
+          },
+          "quarantined_gpus": []
+        },
+        "heartbeat": "2026-08-16T09:02:09.529771+00:00",
+        "observations": 100,
+        "retrieval_floor": 0.000041477268840438114,
+        "generation_floor": 1e-8
+      },
+      "error": null
+    },
+    "phase_4_role_attribution": {
+      "phase": "phase_4_role_attribution",
+      "status": "passed",
+      "started_at": "2026-08-16T09:02:09.612067+00:00",
+      "finished_at": "2026-08-16T09:04:40.890154+00:00",
+      "progress": {
+        "active_group": "phase4-attribution-pilot",
+        "gpu_admission": {
+          "allowed_physical_gpus": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "excluded_physical_gpus": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "base_min_free_mib": 19000,
+          "pending": [],
+          "running": {},
+          "completed": [
+            "single"
+          ],
+          "oom_retries": {
+            "single": 0
+          },
+          "required_free_mib": {
+            "single": 19000
+          },
+          "gpu_memory_mib": {
+            "0": {
+              "total": 24564,
+              "free": 10742
+            },
+            "1": {
+              "total": 24564,
+              "free": 8022
+            },
+            "2": {
+              "total": 24564,
+              "free": 8704
+            },
+            "3": {
+              "total": 24564,
+              "free": 8258
+            },
+            "4": {
+              "total": 24564,
+              "free": 19456
+            },
+            "5": {
+              "total": 24564,
+              "free": 19504
+            },
+            "6": {
+              "total": 24564,
+              "free": 19584
+            },
+            "7": {
+              "total": 24564,
+              "free": 19656
+            }
+          },
+          "quarantined_gpus": []
+        },
+        "heartbeat": "2026-08-16T09:04:40.887811+00:00",
+        "pilot_queries": 5,
+        "runtime_view": "label-free"
+      },
+      "error": null
+    },
+    "phase_5_oracle_mechanism": {
+      "phase": "phase_5_oracle_mechanism",
+      "status": "failed",
+      "started_at": "2026-08-16T09:04:40.916786+00:00",
+      "finished_at": "2026-08-16T09:47:28.592589+00:00",
+      "progress": {
+        "active_group": "mechanism-poisonedrag_w",
+        "gpu_admission": {
+          "allowed_physical_gpus": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "excluded_physical_gpus": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "base_min_free_mib": 19000,
+          "pending": [],
+          "running": {},
+          "completed": [
+            "shard-00",
+            "shard-01",
+            "shard-02",
+            "shard-03",
+            "shard-04",
+            "shard-05",
+            "shard-06",
+            "shard-07"
+          ],
+          "oom_retries": {
+            "shard-00": 0,
+            "shard-01": 0,
+            "shard-02": 0,
+            "shard-03": 0,
+            "shard-04": 0,
+            "shard-05": 0,
+            "shard-06": 0,
+            "shard-07": 0
+          },
+          "required_free_mib": {
+            "shard-00": 19000,
+            "shard-01": 19000,
+            "shard-02": 19000,
+            "shard-03": 19000,
+            "shard-04": 19000,
+            "shard-05": 19000,
+            "shard-06": 19000,
+            "shard-07": 19000
+          },
+          "gpu_memory_mib": {
+            "0": {
+              "total": 24564,
+              "free": 12308
+            },
+            "1": {
+              "total": 24564,
+              "free": 10608
+            },
+            "2": {
+              "total": 24564,
+              "free": 8704
+            },
+            "3": {
+              "total": 24564,
+              "free": 8258
+            },
+            "4": {
+              "total": 24564,
+              "free": 19456
+            },
+            "5": {
+              "total": 24564,
+              "free": 19504
+            },
+            "6": {
+              "total": 24564,
+              "free": 19584
+            },
+            "7": {
+              "total": 24564,
+              "free": 19656
+            }
+          },
+          "quarantined_gpus": []
+        },
+        "heartbeat": "2026-08-16T09:46:58.561675+00:00",
+        "active_command": "phase5-combine-mechanism",
+        "active_pid": 2093414
+      },
+      "error": "GateFailure: gate_3 failed: successful co-chunk/reranked/end-to-end event quota not met"
+    },
+    "phase_6_intervention_robustness": {
+      "phase": "phase_6_intervention_robustness",
+      "status": "skipped",
+      "started_at": null,
+      "finished_at": null,
+      "progress": {},
+      "error": "not run because a preceding gate or phase failed"
+    },
+    "phase_7_conformal_detection": {
+      "phase": "phase_7_conformal_detection",
+      "status": "skipped",
+      "started_at": null,
+      "finished_at": null,
+      "progress": {},
+      "error": "not run because a preceding gate or phase failed"
+    },
+    "phase_8_hard_benign": {
+      "phase": "phase_8_hard_benign",
+      "status": "skipped",
+      "started_at": null,
+      "finished_at": null,
+      "progress": {},
+      "error": "not run because a preceding gate or phase failed"
+    },
+    "phase_9_joint_gcg_boundary": {
+      "phase": "phase_9_joint_gcg_boundary",
+      "status": "skipped",
+      "started_at": null,
+      "finished_at": null,
+      "progress": {},
+      "error": "not run because a preceding gate or phase failed"
+    }
+  },
+  "gates": {
+    "gate_1": {
+      "gate": "gate_1",
+      "passed": true,
+      "decided_at": "2026-08-16T08:50:34.514412+00:00",
+      "evidence_paths": [
+        "/mnt/data/jkl/RGRD_V0/artifacts/audit/reproduction_audit.json",
+        "/mnt/data/jkl/RGRD_V0/artifacts/audit/reproduction_audit.md"
+      ],
+      "reasons": [
+        "poisonedrag status is PASS_FUNCTIONAL",
+        "phantom audited as WARN but is informational-only under PA-001-exclude-phantom"
+      ]
+    },
+    "gate_2": {
+      "gate": "gate_2",
+      "passed": true,
+      "decided_at": "2026-08-16T08:56:06.938997+00:00",
+      "evidence_paths": [
+        "/mnt/data/jkl/RGRD_V0/artifacts/statistics/gate2_determinism.json"
+      ],
+      "reasons": [
+        "all 20 queries passed every exact check"
+      ]
+    },
+    "gate_3": {
+      "gate": "gate_3",
+      "passed": false,
+      "decided_at": "2026-08-16T09:47:28.590192+00:00",
+      "evidence_paths": [
+        "/mnt/data/jkl/RGRD_V0/artifacts/statistics/mechanism_tests.json",
+        "/mnt/data/jkl/RGRD_V0/artifacts/reports/mechanism_report.md"
+      ],
+      "reasons": [
+        "successful co-chunk/reranked/end-to-end event quota not met"
+      ]
+    }
+  },
+  "errors": [
+    "GateFailure: gate_3 failed: successful co-chunk/reranked/end-to-end event quota not met",
+    "Traceback (most recent call last):\n  File \"/mnt/data/jkl/RGRD_V0/rgrd/experiments/run.py\", line 1505, in run\n    progress = function()\n  File \"/mnt/data/jkl/RGRD_V0/rgrd/experiments/run.py\", line 1112, in _phase_5\n    raise GateFailure(\"gate_3\", reasons)\nGateFailure: gate_3 failed: successful co-chunk/reranked/end-to-end event quota not met\n"
+  ]
+}

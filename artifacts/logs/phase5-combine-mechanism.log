@@ -1,0 +1,4 @@
+
+[2026-08-16T09:46:58.560070+00:00] COMMAND ["/mnt/data/jkl/conda-envs/rgrd-v0/bin/python3.10", "-m", "rgrd.experiments.combine_mechanism", "--root", "/mnt/data/jkl/RGRD_V0", "--input", "/mnt/data/jkl/RGRD_V0/artifacts/events/e02_mechanism_combined", "--seed", "20260814"]
+{"missing": {"PoisonedRAG-B": {"available": 92, "required": 100}, "PoisonedRAG-W": {"available": 89, "required": 100}}, "passed": false, "reason": "successful co-chunk/reranked/end-to-end event quota not met"}
+[2026-08-16T09:47:28.589629+00:00] EXIT 2

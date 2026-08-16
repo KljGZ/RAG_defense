@@ -1,0 +1,46 @@
+{
+  "captured_at": "2026-08-16T08:47:24.691975+00:00",
+  "checks": {
+    "continuation": " William Shakespeare",
+    "dense_hidden_finite": true,
+    "dense_shape": [
+      2,
+      768
+    ],
+    "generator_precision": {
+      "attention_implementation": "eager",
+      "cublas_workspace_config": ":4096:8",
+      "deterministic_algorithms": "strict",
+      "loaded_dtype": "bfloat16",
+      "requested_dtype": "bfloat16"
+    },
+    "reranker_hidden_score": 9.88119125366211,
+    "reranker_scores": [
+      10.676820755004883,
+      -11.127727508544922
+    ],
+    "shadow_answer": "William Shakespeare",
+    "teacher_full_mean_logp": -3.039828243345255e-06,
+    "teacher_hidden_mean_logp": -8.6875
+  },
+  "device": "cuda:0",
+  "models": {
+    "generator": {
+      "local_path": "/mnt/data/jkl/RGRD_V0/models/Qwen2.5-7B-Instruct",
+      "name": "Qwen/Qwen2.5-7B-Instruct",
+      "revision": "a09a35458c702b33eeacc393d103063234e8bc28"
+    },
+    "reranker": {
+      "local_path": "/mnt/data/jkl/RGRD_V0/models/ms-marco-MiniLM-L-6-v2",
+      "name": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+      "revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a"
+    },
+    "retriever": {
+      "local_path": "/home/jkl/RAG_attack/models/contriever",
+      "name": "facebook/contriever",
+      "revision": "2bd46a25019aeea091fd42d1f0fd4801675cf699"
+    }
+  },
+  "passed": true,
+  "schema_version": 1
+}

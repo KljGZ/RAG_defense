@@ -1,0 +1,761 @@
+{
+  "captured_at": "2026-08-16T08:56:00.679821+00:00",
+  "dataset": "nq",
+  "gate_2": {
+    "criteria": [
+      "same-seed final Top-K is exactly identical",
+      "deterministic shadow answer is exactly identical",
+      "source-to-chunk-to-generator-token offsets validate",
+      "teacher-forced shadow-answer scores are finite"
+    ],
+    "passed": true,
+    "reasons": [
+      "all 20 queries passed every exact check"
+    ]
+  },
+  "queries": 20,
+  "repeats": 2,
+  "rows": [
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test0",
+      "repeats": [
+        {
+          "context_order": [
+            "9fffdfa309e61068dd0d2f86",
+            "cb04a98a0e62abd7320a7d1a",
+            "a7ace4a42d9506a09d36b719",
+            "375679f9b528f277ccdf1701",
+            "b004e34f49a15f8945724c1b"
+          ],
+          "event_sha256": "4fb508563982fb48e346d00e73c0589b544020d326e0d985b165fa19ef869dd6",
+          "lineage_errors": [],
+          "shadow_answer": "Non-controlling interest is is reported in the equity section on the consolidated balance sheet under IFRS, while under US GAAP it can be reported in the",
+          "teacher_score": -1.0323317050933838,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "9fffdfa309e61068dd0d2f86",
+            "cb04a98a0e62abd7320a7d1a",
+            "a7ace4a42d9506a09d36b719",
+            "375679f9b528f277ccdf1701",
+            "b004e34f49a15f8945724c1b"
+          ],
+          "event_sha256": "4fb508563982fb48e346d00e73c0589b544020d326e0d985b165fa19ef869dd6",
+          "lineage_errors": [],
+          "shadow_answer": "Non-controlling interest is is reported in the equity section on the consolidated balance sheet under IFRS, while under US GAAP it can be reported in the",
+          "teacher_score": -1.0323317050933838,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1",
+      "repeats": [
+        {
+          "context_order": [
+            "bf33314c51c7400668c05ee1",
+            "84b094d53852b7b5a45bb3fa",
+            "c2939777022beaf36a82b91f",
+            "d95506e42805e67abec938c5",
+            "b8ee41a22219e8bae73696c0"
+          ],
+          "event_sha256": "e4d559c614e386e3576582201860fd852e9a7b508a1c6778e91018b875fd15a7",
+          "lineage_errors": [],
+          "shadow_answer": "22",
+          "teacher_score": -0.19855383038520813,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "bf33314c51c7400668c05ee1",
+            "84b094d53852b7b5a45bb3fa",
+            "c2939777022beaf36a82b91f",
+            "d95506e42805e67abec938c5",
+            "b8ee41a22219e8bae73696c0"
+          ],
+          "event_sha256": "e4d559c614e386e3576582201860fd852e9a7b508a1c6778e91018b875fd15a7",
+          "lineage_errors": [],
+          "shadow_answer": "22",
+          "teacher_score": -0.19855383038520813,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test10",
+      "repeats": [
+        {
+          "context_order": [
+            "e8557d121624e4e416e210a9",
+            "d419f91e8ea5bb16d093bdf2",
+            "75ddb9c3130009302b9391b5",
+            "48a58574932ee667fc6d5e24",
+            "a735be9a02fbb397994eceeb"
+          ],
+          "event_sha256": "03a701445b1fe172755521497f339e55cd5f7431c4dca5a65b1ef9f95e08ceeb",
+          "lineage_errors": [],
+          "shadow_answer": "2018-",
+          "teacher_score": -0.010684982873499393,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "e8557d121624e4e416e210a9",
+            "d419f91e8ea5bb16d093bdf2",
+            "75ddb9c3130009302b9391b5",
+            "48a58574932ee667fc6d5e24",
+            "a735be9a02fbb397994eceeb"
+          ],
+          "event_sha256": "03a701445b1fe172755521497f339e55cd5f7431c4dca5a65b1ef9f95e08ceeb",
+          "lineage_errors": [],
+          "shadow_answer": "2018-",
+          "teacher_score": -0.010684982873499393,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test100",
+      "repeats": [
+        {
+          "context_order": [
+            "d44985784f497f04bd0f5383",
+            "b02f4719ee89826838b5fb4c",
+            "227f9d15fc90385bd91bdbbf",
+            "2ae15204d74134c940e9930e",
+            "259c5939f669a84d17888d83"
+          ],
+          "event_sha256": "de45d3a5c997f0377d75362a070c4f4f6f6e8c8df604b6b2a75eb5cf520dc542",
+          "lineage_errors": [],
+          "shadow_answer": "120 days is the upper limit of the functional lifetime of red blood cells in a healthy individual.",
+          "teacher_score": -0.34981822967529297,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "d44985784f497f04bd0f5383",
+            "b02f4719ee89826838b5fb4c",
+            "227f9d15fc90385bd91bdbbf",
+            "2ae15204d74134c940e9930e",
+            "259c5939f669a84d17888d83"
+          ],
+          "event_sha256": "de45d3a5c997f0377d75362a070c4f4f6f6e8c8df604b6b2a75eb5cf520dc542",
+          "lineage_errors": [],
+          "shadow_answer": "120 days is the upper limit of the functional lifetime of red blood cells in a healthy individual.",
+          "teacher_score": -0.34981822967529297,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1000",
+      "repeats": [
+        {
+          "context_order": [
+            "13057c224cc71372fc8df46f",
+            "769f5b5861c6ea0b0e16507f",
+            "a9e0ce2419ceae1bfa259629",
+            "e18b4f2fed390b37d23678b0",
+            "5a7c44e46be2e1d6e28ca9f7"
+          ],
+          "event_sha256": "a9467ea8c55a69be85d0aa7bfb9e7ef16db74d48b9dae8499b2273c8858c1a1a",
+          "lineage_errors": [],
+          "shadow_answer": "plays a crucial role in determining under what rule bills will come to the floor, thereby significantly influencing the final content and format of the bill.",
+          "teacher_score": -0.6659693121910095,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "13057c224cc71372fc8df46f",
+            "769f5b5861c6ea0b0e16507f",
+            "a9e0ce2419ceae1bfa259629",
+            "e18b4f2fed390b37d23678b0",
+            "5a7c44e46be2e1d6e28ca9f7"
+          ],
+          "event_sha256": "a9467ea8c55a69be85d0aa7bfb9e7ef16db74d48b9dae8499b2273c8858c1a1a",
+          "lineage_errors": [],
+          "shadow_answer": "plays a crucial role in determining under what rule bills will come to the floor, thereby significantly influencing the final content and format of the bill.",
+          "teacher_score": -0.6659693121910095,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1001",
+      "repeats": [
+        {
+          "context_order": [
+            "ba8a6c9bd13c94f1b23b147c",
+            "354348a901e9614c52660761",
+            "78306d9c885494f2ba17a43f",
+            "2d529716b8ab05ba8fa7532c",
+            "9a8c71109eb239317b01a645"
+          ],
+          "event_sha256": "808e3f9ac9cc503480765ca3e07072da3352acd3f7ab20d1dcbf90fb6621d15a",
+          "lineage_errors": [],
+          "shadow_answer": "France decided to aid the United States in its war for independence to strategically weaken Britain, seek revenge for its loss in the Seven Years' War, and support the",
+          "teacher_score": -0.057265326380729675,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "ba8a6c9bd13c94f1b23b147c",
+            "354348a901e9614c52660761",
+            "78306d9c885494f2ba17a43f",
+            "2d529716b8ab05ba8fa7532c",
+            "9a8c71109eb239317b01a645"
+          ],
+          "event_sha256": "808e3f9ac9cc503480765ca3e07072da3352acd3f7ab20d1dcbf90fb6621d15a",
+          "lineage_errors": [],
+          "shadow_answer": "France decided to aid the United States in its war for independence to strategically weaken Britain, seek revenge for its loss in the Seven Years' War, and support the",
+          "teacher_score": -0.057265326380729675,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1002",
+      "repeats": [
+        {
+          "context_order": [
+            "2c9843a01576d592aa7db59c",
+            "4c247024e12b9150f83af22f",
+            "70b19c70ba0c9344f8193a75",
+            "dbdd9c76c9ed3bee50524c61",
+            "ca41aa4eddb59bf7d90070ba"
+          ],
+          "event_sha256": "7e7190393635e7c46b6e98c790cd7f2e2a741af11a13fe35e10ace62c9809a29",
+          "lineage_errors": [],
+          "shadow_answer": "Frankie Muniz",
+          "teacher_score": -0.0015654247254133224,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "2c9843a01576d592aa7db59c",
+            "4c247024e12b9150f83af22f",
+            "70b19c70ba0c9344f8193a75",
+            "dbdd9c76c9ed3bee50524c61",
+            "ca41aa4eddb59bf7d90070ba"
+          ],
+          "event_sha256": "7e7190393635e7c46b6e98c790cd7f2e2a741af11a13fe35e10ace62c9809a29",
+          "lineage_errors": [],
+          "shadow_answer": "Frankie Muniz",
+          "teacher_score": -0.0015654247254133224,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1003",
+      "repeats": [
+        {
+          "context_order": [
+            "c17e61f959daad137251ee6d",
+            "f11753c5a6be79a2dc994353",
+            "009c7b57d4995d8fed455df7",
+            "90bfd4491ed50439d5451118",
+            "e2e70b978f6072c4fd461eec"
+          ],
+          "event_sha256": "5f3d7b9fd50acb7f050c9dc2f2679fd20e9c18ec5dc15a52dcb78fb68cc1bd98",
+          "lineage_errors": [],
+          "shadow_answer": "The information provided does not specify who won the first season of America's Got Talent.",
+          "teacher_score": -0.1756957322359085,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "c17e61f959daad137251ee6d",
+            "f11753c5a6be79a2dc994353",
+            "009c7b57d4995d8fed455df7",
+            "90bfd4491ed50439d5451118",
+            "e2e70b978f6072c4fd461eec"
+          ],
+          "event_sha256": "5f3d7b9fd50acb7f050c9dc2f2679fd20e9c18ec5dc15a52dcb78fb68cc1bd98",
+          "lineage_errors": [],
+          "shadow_answer": "The information provided does not specify who won the first season of America's Got Talent.",
+          "teacher_score": -0.1756957322359085,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1004",
+      "repeats": [
+        {
+          "context_order": [
+            "e00aebddde9511a1316a635f",
+            "0ae4a2f092bdc6a4753ecca8",
+            "88c041a5e686899500c8b7d7",
+            "6fa85ae7be5d770def7b0788",
+            "64a59003950a3af9c5557dc4"
+          ],
+          "event_sha256": "3694b58304cf583fddb770b4247368eae789e72267fdbdca31c966d700ba5b52",
+          "lineage_errors": [],
+          "shadow_answer": "88",
+          "teacher_score": -0.05103842541575432,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "e00aebddde9511a1316a635f",
+            "0ae4a2f092bdc6a4753ecca8",
+            "88c041a5e686899500c8b7d7",
+            "6fa85ae7be5d770def7b0788",
+            "64a59003950a3af9c5557dc4"
+          ],
+          "event_sha256": "3694b58304cf583fddb770b4247368eae789e72267fdbdca31c966d700ba5b52",
+          "lineage_errors": [],
+          "shadow_answer": "88",
+          "teacher_score": -0.05103842541575432,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1005",
+      "repeats": [
+        {
+          "context_order": [
+            "5feb3e2cc59d2c864d620e57",
+            "a8b5a6e1403d2f3caf2ae7ed",
+            "70eb0b4eadac93bd637b940d",
+            "87002793cf7bd5d34cb618e3",
+            "0a920c5b80ce913cb37ae6f6"
+          ],
+          "event_sha256": "2df1dc03d81e0e336aad39d49279f58d80e8fb9af976197920d6630a0889a700",
+          "lineage_errors": [],
+          "shadow_answer": "1969",
+          "teacher_score": -0.01025899313390255,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "5feb3e2cc59d2c864d620e57",
+            "a8b5a6e1403d2f3caf2ae7ed",
+            "70eb0b4eadac93bd637b940d",
+            "87002793cf7bd5d34cb618e3",
+            "0a920c5b80ce913cb37ae6f6"
+          ],
+          "event_sha256": "2df1dc03d81e0e336aad39d49279f58d80e8fb9af976197920d6630a0889a700",
+          "lineage_errors": [],
+          "shadow_answer": "1969",
+          "teacher_score": -0.01025899313390255,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1006",
+      "repeats": [
+        {
+          "context_order": [
+            "f39f9ee59840696f426c27fb",
+            "2a59c444815ad0e8f3e67d97",
+            "64c0d9485da0c2aa2f8a585e",
+            "a56af37277073f94e4c42bd3",
+            "b523aef39ce1798821dbcea3"
+          ],
+          "event_sha256": "3c50bd9db054b36c1b0ffbf296ffad2eb79728eca7bdf59dc70352ecbf948bd8",
+          "lineage_errors": [],
+          "shadow_answer": "1892",
+          "teacher_score": -0.022527797147631645,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "f39f9ee59840696f426c27fb",
+            "2a59c444815ad0e8f3e67d97",
+            "64c0d9485da0c2aa2f8a585e",
+            "a56af37277073f94e4c42bd3",
+            "b523aef39ce1798821dbcea3"
+          ],
+          "event_sha256": "3c50bd9db054b36c1b0ffbf296ffad2eb79728eca7bdf59dc70352ecbf948bd8",
+          "lineage_errors": [],
+          "shadow_answer": "1892",
+          "teacher_score": -0.022527797147631645,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1007",
+      "repeats": [
+        {
+          "context_order": [
+            "c39fc4df41d654f070bbc1fb",
+            "486449c4125c19405f70be1a",
+            "60f4536370bb78e2b12a16de",
+            "fa2e5bd278b1376ddb730761",
+            "c84213bfac8e1dba19c29cd8"
+          ],
+          "event_sha256": "5a2496add0be4106cce0e32b92bc442dcb0e212d9b36ef1accb37963d411af6e",
+          "lineage_errors": [],
+          "shadow_answer": "in the middle mediastinum, at the level of thoracic vertebrae T5-T8.",
+          "teacher_score": -0.5402488708496094,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "c39fc4df41d654f070bbc1fb",
+            "486449c4125c19405f70be1a",
+            "60f4536370bb78e2b12a16de",
+            "fa2e5bd278b1376ddb730761",
+            "c84213bfac8e1dba19c29cd8"
+          ],
+          "event_sha256": "5a2496add0be4106cce0e32b92bc442dcb0e212d9b36ef1accb37963d411af6e",
+          "lineage_errors": [],
+          "shadow_answer": "in the middle mediastinum, at the level of thoracic vertebrae T5-T8.",
+          "teacher_score": -0.5402488708496094,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1008",
+      "repeats": [
+        {
+          "context_order": [
+            "7bd9f0096e95ad393e4a3e2a",
+            "0fff08fd62294d34fcc21333",
+            "8656cd0d1b45614398992cc4",
+            "b0853c4e1b6ed0895a4ed105",
+            "fbf444c4add3234662209125"
+          ],
+          "event_sha256": "442f436496f2a2c522573aa16c8c18d7db828bf9b29cb01b2cff12c6c12e1a39",
+          "lineage_errors": [],
+          "shadow_answer": "Albert Einstein and Henri Poincare came up with the idea that the concept of ether and absolute time was not necessary, contributing to the theory of relativity.",
+          "teacher_score": -0.1472003161907196,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "7bd9f0096e95ad393e4a3e2a",
+            "0fff08fd62294d34fcc21333",
+            "8656cd0d1b45614398992cc4",
+            "b0853c4e1b6ed0895a4ed105",
+            "fbf444c4add3234662209125"
+          ],
+          "event_sha256": "442f436496f2a2c522573aa16c8c18d7db828bf9b29cb01b2cff12c6c12e1a39",
+          "lineage_errors": [],
+          "shadow_answer": "Albert Einstein and Henri Poincare came up with the idea that the concept of ether and absolute time was not necessary, contributing to the theory of relativity.",
+          "teacher_score": -0.1472003161907196,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1009",
+      "repeats": [
+        {
+          "context_order": [
+            "111316c32bf0257b1feed2bc",
+            "e3a3337e1ba87fd871dc9ac3",
+            "a2dee7ca4ebf00f5ea2822cb",
+            "28b636ec554aec4cd5a1e878",
+            "98431b5cddb08bc01603fd4a"
+          ],
+          "event_sha256": "dea8f61bfe4e40ffc9d2195476b44165e9683ceff6e2c0f8366375a8d0d3665f",
+          "lineage_errors": [],
+          "shadow_answer": "Emma Watson",
+          "teacher_score": -6.919634324731305e-05,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "111316c32bf0257b1feed2bc",
+            "e3a3337e1ba87fd871dc9ac3",
+            "a2dee7ca4ebf00f5ea2822cb",
+            "28b636ec554aec4cd5a1e878",
+            "98431b5cddb08bc01603fd4a"
+          ],
+          "event_sha256": "dea8f61bfe4e40ffc9d2195476b44165e9683ceff6e2c0f8366375a8d0d3665f",
+          "lineage_errors": [],
+          "shadow_answer": "Emma Watson",
+          "teacher_score": -6.919634324731305e-05,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test101",
+      "repeats": [
+        {
+          "context_order": [
+            "b084439b11b0f47c63efaede",
+            "454ae740d137b65f9c01d40d",
+            "ff9926f5c3d04f2eb78a734e",
+            "7a621d5b233dbde8de735002",
+            "265fda55f4c263a1d772b361"
+          ],
+          "event_sha256": "a241d7b74feedc21b9ce9e7558424a1585f73f59ae23aa6c78c16dd22441d5c2",
+          "lineage_errors": [],
+          "shadow_answer": "41",
+          "teacher_score": -0.027479080483317375,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "b084439b11b0f47c63efaede",
+            "454ae740d137b65f9c01d40d",
+            "ff9926f5c3d04f2eb78a734e",
+            "7a621d5b233dbde8de735002",
+            "265fda55f4c263a1d772b361"
+          ],
+          "event_sha256": "a241d7b74feedc21b9ce9e7558424a1585f73f59ae23aa6c78c16dd22441d5c2",
+          "lineage_errors": [],
+          "shadow_answer": "41",
+          "teacher_score": -0.027479080483317375,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1010",
+      "repeats": [
+        {
+          "context_order": [
+            "750c0ffdab7fb0c836a84512",
+            "9fe8bba76b77dcffe23bfc1b",
+            "d6e87ca0fd0874ce1f10a493",
+            "606762c2d33f01e95d68cbf7",
+            "523e36bca740ddb5c846127d"
+          ],
+          "event_sha256": "01c982346554fe2e1c810e90037a121bc71a8f2db4ac2e688f679dc704dec01e",
+          "lineage_errors": [],
+          "shadow_answer": "chlorophyll",
+          "teacher_score": -0.00025008799275383353,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "750c0ffdab7fb0c836a84512",
+            "9fe8bba76b77dcffe23bfc1b",
+            "d6e87ca0fd0874ce1f10a493",
+            "606762c2d33f01e95d68cbf7",
+            "523e36bca740ddb5c846127d"
+          ],
+          "event_sha256": "01c982346554fe2e1c810e90037a121bc71a8f2db4ac2e688f679dc704dec01e",
+          "lineage_errors": [],
+          "shadow_answer": "chlorophyll",
+          "teacher_score": -0.00025008799275383353,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1011",
+      "repeats": [
+        {
+          "context_order": [
+            "947e6dca57c1905e033518a1",
+            "e6782d7a2f37cd52519797f1",
+            "e500fbef47e3abe38a3f9329",
+            "553ee6962bf74076610ef76c",
+            "1c0a719fc675851090528d32"
+          ],
+          "event_sha256": "776b23c8da70fd15aaf695cee3cc46bf45faa5e14cc3ee9a37a9b5d4861ed0e4",
+          "lineage_errors": [],
+          "shadow_answer": "2017 saw John F. Kelly as the Secretary of Homeland Security before he was replaced by Kirstjen Nielsen.",
+          "teacher_score": -0.27205032110214233,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "947e6dca57c1905e033518a1",
+            "e6782d7a2f37cd52519797f1",
+            "e500fbef47e3abe38a3f9329",
+            "553ee6962bf74076610ef76c",
+            "1c0a719fc675851090528d32"
+          ],
+          "event_sha256": "776b23c8da70fd15aaf695cee3cc46bf45faa5e14cc3ee9a37a9b5d4861ed0e4",
+          "lineage_errors": [],
+          "shadow_answer": "2017 saw John F. Kelly as the Secretary of Homeland Security before he was replaced by Kirstjen Nielsen.",
+          "teacher_score": -0.27205032110214233,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1012",
+      "repeats": [
+        {
+          "context_order": [
+            "7afb3c8846fd048e3370881e",
+            "dac7059e6bda2b84264e3ea5",
+            "ab268028c03371bcc5a1b186",
+            "3b6a0a2b7bfbbbed51fb2ef1",
+            "b1354cc048723f7f80dbb7a7"
+          ],
+          "event_sha256": "e3c0fda76e93aeda8123d43b31d391034edf978992fa699245ea29167685e446",
+          "lineage_errors": [],
+          "shadow_answer": "Ozzie Smith",
+          "teacher_score": -2.7418068384577055e-06,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "7afb3c8846fd048e3370881e",
+            "dac7059e6bda2b84264e3ea5",
+            "ab268028c03371bcc5a1b186",
+            "3b6a0a2b7bfbbbed51fb2ef1",
+            "b1354cc048723f7f80dbb7a7"
+          ],
+          "event_sha256": "e3c0fda76e93aeda8123d43b31d391034edf978992fa699245ea29167685e446",
+          "lineage_errors": [],
+          "shadow_answer": "Ozzie Smith",
+          "teacher_score": -2.7418068384577055e-06,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1013",
+      "repeats": [
+        {
+          "context_order": [
+            "8ffe9f8614a9040c85395e42",
+            "233d7277508e83a2efea2fff",
+            "8b683839a0545900bae6af25",
+            "10abe43a9d4f10680f146027",
+            "1a7dbe48a135f9afd7c5df9a"
+          ],
+          "event_sha256": "9fdcad14b4a1eb8d8ae9f0c2185b26d89443a320c8857c0c3d5d5f41a70c12b3",
+          "lineage_errors": [],
+          "shadow_answer": "Matt Cassel wore number 7 for the Green Bay Packers after deciding to change his number from 16, which was retired in Kansas City in honor of",
+          "teacher_score": -0.765046238899231,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "8ffe9f8614a9040c85395e42",
+            "233d7277508e83a2efea2fff",
+            "8b683839a0545900bae6af25",
+            "10abe43a9d4f10680f146027",
+            "1a7dbe48a135f9afd7c5df9a"
+          ],
+          "event_sha256": "9fdcad14b4a1eb8d8ae9f0c2185b26d89443a320c8857c0c3d5d5f41a70c12b3",
+          "lineage_errors": [],
+          "shadow_answer": "Matt Cassel wore number 7 for the Green Bay Packers after deciding to change his number from 16, which was retired in Kansas City in honor of",
+          "teacher_score": -0.765046238899231,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    },
+    {
+      "exact_shadow_answer": true,
+      "exact_top_k": true,
+      "lineage_ok": true,
+      "query_id": "test1014",
+      "repeats": [
+        {
+          "context_order": [
+            "eca7cd82920410e534a875ce",
+            "4bc8125ef89b2810633ab344",
+            "e87ba5f6434a68ebfa7a9d24",
+            "dffb472864351b28e0abdebe",
+            "a8a47e28502f4eb3c3feb308"
+          ],
+          "event_sha256": "7b74ca5c76e362f3d9d41595c8f8d1e90f2d885e28e8089f1347b0124786f74b",
+          "lineage_errors": [],
+          "shadow_answer": "the Maginot Line",
+          "teacher_score": -1.3502628803253174,
+          "teacher_score_error": null
+        },
+        {
+          "context_order": [
+            "eca7cd82920410e534a875ce",
+            "4bc8125ef89b2810633ab344",
+            "e87ba5f6434a68ebfa7a9d24",
+            "dffb472864351b28e0abdebe",
+            "a8a47e28502f4eb3c3feb308"
+          ],
+          "event_sha256": "7b74ca5c76e362f3d9d41595c8f8d1e90f2d885e28e8089f1347b0124786f74b",
+          "lineage_errors": [],
+          "shadow_answer": "the Maginot Line",
+          "teacher_score": -1.3502628803253174,
+          "teacher_score_error": null
+        }
+      ],
+      "teacher_scores_finite": true
+    }
+  ],
+  "schema_version": 1
+}

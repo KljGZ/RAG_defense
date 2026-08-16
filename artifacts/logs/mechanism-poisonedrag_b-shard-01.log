@@ -1,0 +1,7 @@
+
+[2026-08-16T09:07:12.175551+00:00] GPU_ADMISSION physical_gpu=6 free_mib=19584 required_mib=19000 attempt=1
+[2026-08-16T09:07:12.175568+00:00] COMMAND ["/mnt/data/jkl/conda-envs/rgrd-v0/bin/python3.10", "-m", "rgrd.experiments.mechanism_worker", "--root", "/mnt/data/jkl/RGRD_V0", "--attack-root", "/home/jkl/RAG_attack", "--family", "PoisonedRAG-B", "--dataset", "nq", "--max-candidates", "500", "--output", "/mnt/data/jkl/RGRD_V0/artifacts/events/e02_mechanism/poisonedrag_b/shard-01.jsonl", "--shard-id", "1", "--shards", "8", "--device", "cuda:0", "--detector-commit", "8cf9aecaa8936a324abaa8c3815aa62c1fa92142", "--model-revision", "generator=a09a35458c702b33eeacc393d103063234e8bc28", "--model-revision", "reranker=233902d25c440f23af6f7d6e94d2946bac0bee0a", "--model-revision", "retriever=2bd46a25019aeea091fd42d1f0fd4801675cf699"]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.40it/s]Loading checkpoint shards:  50%|█████     | 2/4 [00:00<00:00,  5.15it/s]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:00<00:00,  6.47it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  6.49it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  5.89it/s]
+{"attempted": 53, "eligible": 13, "skipped": 0}
+[2026-08-16T09:15:15.457764+00:00] EXIT 0

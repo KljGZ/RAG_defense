@@ -1,0 +1,715 @@
+{
+  "captured_at": "2026-08-16T09:01:49.108065+00:00",
+  "generation": 1e-08,
+  "maximum_observed": {
+    "generation": 0.0,
+    "retrieval": 4.897839236590179e-05
+  },
+  "observations": 100,
+  "protocol": "99th percentile of total positive effect under exact repeated no-op scoring",
+  "quantile": 0.99,
+  "retrieval": 4.1477268840438114e-05,
+  "rows": [
+    {
+      "atomic_spans": 10,
+      "chunk_id": "9fffdfa309e61068dd0d2f86",
+      "generation_total": 0.0,
+      "query_id": "test0",
+      "retrieval_total": 1.6310989225942762e-06
+    },
+    {
+      "atomic_spans": 5,
+      "chunk_id": "cb04a98a0e62abd7320a7d1a",
+      "generation_total": 0.0,
+      "query_id": "test0",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "a7ace4a42d9506a09d36b719",
+      "generation_total": 0.0,
+      "query_id": "test0",
+      "retrieval_total": 1.9573187071131315e-06
+    },
+    {
+      "atomic_spans": 16,
+      "chunk_id": "375679f9b528f277ccdf1701",
+      "generation_total": 0.0,
+      "query_id": "test0",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 1,
+      "chunk_id": "b004e34f49a15f8945724c1b",
+      "generation_total": 0.0,
+      "query_id": "test0",
+      "retrieval_total": 1.0194368272124715e-07
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "bf33314c51c7400668c05ee1",
+      "generation_total": 0.0,
+      "query_id": "test1",
+      "retrieval_total": 1.5918189601588084e-05
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "84b094d53852b7b5a45bb3fa",
+      "generation_total": 0.0,
+      "query_id": "test1",
+      "retrieval_total": 2.426682669476321e-06
+    },
+    {
+      "atomic_spans": 9,
+      "chunk_id": "c2939777022beaf36a82b91f",
+      "generation_total": 0.0,
+      "query_id": "test1",
+      "retrieval_total": 1.4560096013360724e-05
+    },
+    {
+      "atomic_spans": 10,
+      "chunk_id": "d95506e42805e67abec938c5",
+      "generation_total": 0.0,
+      "query_id": "test1",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 3,
+      "chunk_id": "b8ee41a22219e8bae73696c0",
+      "generation_total": 0.0,
+      "query_id": "test1",
+      "retrieval_total": 3.640024003367313e-06
+    },
+    {
+      "atomic_spans": 9,
+      "chunk_id": "e8557d121624e4e416e210a9",
+      "generation_total": 0.0,
+      "query_id": "test10",
+      "retrieval_total": 3.028652058145731e-06
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "d419f91e8ea5bb16d093bdf2",
+      "generation_total": 0.0,
+      "query_id": "test10",
+      "retrieval_total": 2.3556182672523907e-06
+    },
+    {
+      "atomic_spans": 11,
+      "chunk_id": "75ddb9c3130009302b9391b5",
+      "generation_total": 0.0,
+      "query_id": "test10",
+      "retrieval_total": 3.7016858486921267e-06
+    },
+    {
+      "atomic_spans": 4,
+      "chunk_id": "48a58574932ee667fc6d5e24",
+      "generation_total": 0.0,
+      "query_id": "test10",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 11,
+      "chunk_id": "a735be9a02fbb397994eceeb",
+      "generation_total": 0.0,
+      "query_id": "test10",
+      "retrieval_total": 3.7016858486905622e-06
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "d44985784f497f04bd0f5383",
+      "generation_total": 0.0,
+      "query_id": "test100",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "b02f4719ee89826838b5fb4c",
+      "generation_total": 0.0,
+      "query_id": "test100",
+      "retrieval_total": 1.5395089119074612e-06
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "227f9d15fc90385bd91bdbbf",
+      "generation_total": 0.0,
+      "query_id": "test100",
+      "retrieval_total": 1.319579067515786e-06
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "2ae15204d74134c940e9930e",
+      "generation_total": 0.0,
+      "query_id": "test100",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "259c5939f669a84d17888d83",
+      "generation_total": 0.0,
+      "query_id": "test100",
+      "retrieval_total": 5.278316269893067e-06
+    },
+    {
+      "atomic_spans": 10,
+      "chunk_id": "13057c224cc71372fc8df46f",
+      "generation_total": 0.0,
+      "query_id": "test1000",
+      "retrieval_total": 1.2504952928704682e-05
+    },
+    {
+      "atomic_spans": 10,
+      "chunk_id": "769f5b5861c6ea0b0e16507f",
+      "generation_total": 0.0,
+      "query_id": "test1000",
+      "retrieval_total": 8.336635287653493e-06
+    },
+    {
+      "atomic_spans": 3,
+      "chunk_id": "a9e0ce2419ceae1bfa259629",
+      "generation_total": 0.0,
+      "query_id": "test1000",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 3,
+      "chunk_id": "e18b4f2fed390b37d23678b0",
+      "generation_total": 0.0,
+      "query_id": "test1000",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "5a7c44e46be2e1d6e28ca9f7",
+      "generation_total": 0.0,
+      "query_id": "test1000",
+      "retrieval_total": 3.126238232542137e-06
+    },
+    {
+      "atomic_spans": 8,
+      "chunk_id": "ba8a6c9bd13c94f1b23b147c",
+      "generation_total": 0.0,
+      "query_id": "test1001",
+      "retrieval_total": 4.574862046524686e-06
+    },
+    {
+      "atomic_spans": 8,
+      "chunk_id": "354348a901e9614c52660761",
+      "generation_total": 0.0,
+      "query_id": "test1001",
+      "retrieval_total": 2.287431023262343e-06
+    },
+    {
+      "atomic_spans": 13,
+      "chunk_id": "78306d9c885494f2ba17a43f",
+      "generation_total": 0.0,
+      "query_id": "test1001",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 10,
+      "chunk_id": "2d529716b8ab05ba8fa7532c",
+      "generation_total": 0.0,
+      "query_id": "test1001",
+      "retrieval_total": 2.8592887789391508e-06
+    },
+    {
+      "atomic_spans": 9,
+      "chunk_id": "9a8c71109eb239317b01a645",
+      "generation_total": 0.0,
+      "query_id": "test1001",
+      "retrieval_total": 5.1467198020214145e-06
+    },
+    {
+      "atomic_spans": 10,
+      "chunk_id": "2c9843a01576d592aa7db59c",
+      "generation_total": 0.0,
+      "query_id": "test1002",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "4c247024e12b9150f83af22f",
+      "generation_total": 0.0,
+      "query_id": "test1002",
+      "retrieval_total": 4.1401499915938444e-05
+    },
+    {
+      "atomic_spans": 8,
+      "chunk_id": "70b19c70ba0c9344f8193a75",
+      "generation_total": 0.0,
+      "query_id": "test1002",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 10,
+      "chunk_id": "dbdd9c76c9ed3bee50524c61",
+      "generation_total": 0.0,
+      "query_id": "test1002",
+      "retrieval_total": 6.662059575113233e-06
+    },
+    {
+      "atomic_spans": 16,
+      "chunk_id": "ca41aa4eddb59bf7d90070ba",
+      "generation_total": 0.0,
+      "query_id": "test1002",
+      "retrieval_total": 2.131859063963142e-06
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "c17e61f959daad137251ee6d",
+      "generation_total": 0.0,
+      "query_id": "test1003",
+      "retrieval_total": 2.8462863078670964e-06
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "f11753c5a6be79a2dc994353",
+      "generation_total": 0.0,
+      "query_id": "test1003",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "009c7b57d4995d8fed455df7",
+      "generation_total": 0.0,
+      "query_id": "test1003",
+      "retrieval_total": 2.846286307964241e-06
+    },
+    {
+      "atomic_spans": 3,
+      "chunk_id": "90bfd4491ed50439d5451118",
+      "generation_total": 0.0,
+      "query_id": "test1003",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "e2e70b978f6072c4fd461eec",
+      "generation_total": 0.0,
+      "query_id": "test1003",
+      "retrieval_total": 4.879347956468084e-06
+    },
+    {
+      "atomic_spans": 12,
+      "chunk_id": "e00aebddde9511a1316a635f",
+      "generation_total": 0.0,
+      "query_id": "test1004",
+      "retrieval_total": 4.598410732192804e-06
+    },
+    {
+      "atomic_spans": 12,
+      "chunk_id": "0ae4a2f092bdc6a4753ecca8",
+      "generation_total": 0.0,
+      "query_id": "test1004",
+      "retrieval_total": 2.299205366096402e-06
+    },
+    {
+      "atomic_spans": 11,
+      "chunk_id": "88c041a5e686899500c8b7d7",
+      "generation_total": 0.0,
+      "query_id": "test1004",
+      "retrieval_total": 2.1076049189217017e-06
+    },
+    {
+      "atomic_spans": 9,
+      "chunk_id": "6fa85ae7be5d770def7b0788",
+      "generation_total": 0.0,
+      "query_id": "test1004",
+      "retrieval_total": 1.0346424146684408e-05
+    },
+    {
+      "atomic_spans": 9,
+      "chunk_id": "64a59003950a3af9c5557dc4",
+      "generation_total": 0.0,
+      "query_id": "test1004",
+      "retrieval_total": 8.622020122070561e-06
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "5feb3e2cc59d2c864d620e57",
+      "generation_total": 0.0,
+      "query_id": "test1005",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 10,
+      "chunk_id": "a8b5a6e1403d2f3caf2ae7ed",
+      "generation_total": 0.0,
+      "query_id": "test1005",
+      "retrieval_total": 9.831694524342627e-06
+    },
+    {
+      "atomic_spans": 12,
+      "chunk_id": "70eb0b4eadac93bd637b940d",
+      "generation_total": 0.0,
+      "query_id": "test1005",
+      "retrieval_total": 7.373770893215337e-06
+    },
+    {
+      "atomic_spans": 11,
+      "chunk_id": "87002793cf7bd5d34cb618e3",
+      "generation_total": 0.0,
+      "query_id": "test1005",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 12,
+      "chunk_id": "0a920c5b80ce913cb37ae6f6",
+      "generation_total": 0.0,
+      "query_id": "test1005",
+      "retrieval_total": 1.474754178641075e-06
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "f39f9ee59840696f426c27fb",
+      "generation_total": 0.0,
+      "query_id": "test1006",
+      "retrieval_total": 8.577028667300368e-07
+    },
+    {
+      "atomic_spans": 14,
+      "chunk_id": "2a59c444815ad0e8f3e67d97",
+      "generation_total": 0.0,
+      "query_id": "test1006",
+      "retrieval_total": 6.861622936948919e-06
+    },
+    {
+      "atomic_spans": 14,
+      "chunk_id": "64c0d9485da0c2aa2f8a585e",
+      "generation_total": 0.0,
+      "query_id": "test1006",
+      "retrieval_total": 4.288514335593074e-06
+    },
+    {
+      "atomic_spans": 14,
+      "chunk_id": "a56af37277073f94e4c42bd3",
+      "generation_total": 0.0,
+      "query_id": "test1006",
+      "retrieval_total": 6.003920069830304e-06
+    },
+    {
+      "atomic_spans": 9,
+      "chunk_id": "b523aef39ce1798821dbcea3",
+      "generation_total": 0.0,
+      "query_id": "test1006",
+      "retrieval_total": 3.859662901943304e-06
+    },
+    {
+      "atomic_spans": 5,
+      "chunk_id": "c39fc4df41d654f070bbc1fb",
+      "generation_total": 0.0,
+      "query_id": "test1007",
+      "retrieval_total": 7.573279370287622e-07
+    },
+    {
+      "atomic_spans": 12,
+      "chunk_id": "486449c4125c19405f70be1a",
+      "generation_total": 0.0,
+      "query_id": "test1007",
+      "retrieval_total": 1.8175870488690293e-06
+    },
+    {
+      "atomic_spans": 11,
+      "chunk_id": "60f4536370bb78e2b12a16de",
+      "generation_total": 0.0,
+      "query_id": "test1007",
+      "retrieval_total": 4.998364384389831e-06
+    },
+    {
+      "atomic_spans": 1,
+      "chunk_id": "fa2e5bd278b1376ddb730761",
+      "generation_total": 0.0,
+      "query_id": "test1007",
+      "retrieval_total": 6.815951433623152e-07
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "c84213bfac8e1dba19c29cd8",
+      "generation_total": 0.0,
+      "query_id": "test1007",
+      "retrieval_total": 4.089570860171793e-06
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "7bd9f0096e95ad393e4a3e2a",
+      "generation_total": 0.0,
+      "query_id": "test1008",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "0fff08fd62294d34fcc21333",
+      "generation_total": 0.0,
+      "query_id": "test1008",
+      "retrieval_total": 1.847944931243628e-05
+    },
+    {
+      "atomic_spans": 3,
+      "chunk_id": "8656cd0d1b45614398992cc4",
+      "generation_total": 0.0,
+      "query_id": "test1008",
+      "retrieval_total": 2.5870303973218878e-06
+    },
+    {
+      "atomic_spans": 16,
+      "chunk_id": "b0853c4e1b6ed0895a4ed105",
+      "generation_total": 0.0,
+      "query_id": "test1008",
+      "retrieval_total": 6.898747726413745e-06
+    },
+    {
+      "atomic_spans": 9,
+      "chunk_id": "fbf444c4add3234662209125",
+      "generation_total": 0.0,
+      "query_id": "test1008",
+      "retrieval_total": 7.76109119217475e-06
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "111316c32bf0257b1feed2bc",
+      "generation_total": 0.0,
+      "query_id": "test1009",
+      "retrieval_total": 3.265226157722623e-05
+    },
+    {
+      "atomic_spans": 15,
+      "chunk_id": "e3a3337e1ba87fd871dc9ac3",
+      "generation_total": 0.0,
+      "query_id": "test1009",
+      "retrieval_total": 1.6749421421491384e-05
+    },
+    {
+      "atomic_spans": 5,
+      "chunk_id": "a2dee7ca4ebf00f5ea2822cb",
+      "generation_total": 0.0,
+      "query_id": "test1009",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 9,
+      "chunk_id": "28b636ec554aec4cd5a1e878",
+      "generation_total": 0.0,
+      "query_id": "test1009",
+      "retrieval_total": 4.897839236590179e-05
+    },
+    {
+      "atomic_spans": 16,
+      "chunk_id": "98431b5cddb08bc01603fd4a",
+      "generation_total": 0.0,
+      "query_id": "test1009",
+      "retrieval_total": 8.933024758102751e-06
+    },
+    {
+      "atomic_spans": 12,
+      "chunk_id": "b084439b11b0f47c63efaede",
+      "generation_total": 0.0,
+      "query_id": "test101",
+      "retrieval_total": 1.1241860190747133e-05
+    },
+    {
+      "atomic_spans": 16,
+      "chunk_id": "454ae740d137b65f9c01d40d",
+      "generation_total": 0.0,
+      "query_id": "test101",
+      "retrieval_total": 2.2483720381050176e-05
+    },
+    {
+      "atomic_spans": 16,
+      "chunk_id": "ff9926f5c3d04f2eb78a734e",
+      "generation_total": 0.0,
+      "query_id": "test101",
+      "retrieval_total": 7.494573460387066e-06
+    },
+    {
+      "atomic_spans": 14,
+      "chunk_id": "7a621d5b233dbde8de735002",
+      "generation_total": 0.0,
+      "query_id": "test101",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "265fda55f4c263a1d772b361",
+      "generation_total": 0.0,
+      "query_id": "test101",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 9,
+      "chunk_id": "750c0ffdab7fb0c836a84512",
+      "generation_total": 0.0,
+      "query_id": "test1010",
+      "retrieval_total": 1.4949856312895804e-06
+    },
+    {
+      "atomic_spans": 6,
+      "chunk_id": "9fe8bba76b77dcffe23bfc1b",
+      "generation_total": 0.0,
+      "query_id": "test1010",
+      "retrieval_total": 9.96657087526387e-07
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "d6e87ca0fd0874ce1f10a493",
+      "generation_total": 0.0,
+      "query_id": "test1010",
+      "retrieval_total": 4.651066408650761e-06
+    },
+    {
+      "atomic_spans": 13,
+      "chunk_id": "606762c2d33f01e95d68cbf7",
+      "generation_total": 0.0,
+      "query_id": "test1010",
+      "retrieval_total": 4.318847379461421e-06
+    },
+    {
+      "atomic_spans": 14,
+      "chunk_id": "523e36bca740ddb5c846127d",
+      "generation_total": 0.0,
+      "query_id": "test1010",
+      "retrieval_total": 4.651066408549091e-06
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "947e6dca57c1905e033518a1",
+      "generation_total": 0.0,
+      "query_id": "test1011",
+      "retrieval_total": 3.7468779851002054e-06
+    },
+    {
+      "atomic_spans": 3,
+      "chunk_id": "e6782d7a2f37cd52519797f1",
+      "generation_total": 0.0,
+      "query_id": "test1011",
+      "retrieval_total": 8.029024253786154e-07
+    },
+    {
+      "atomic_spans": 3,
+      "chunk_id": "e500fbef47e3abe38a3f9329",
+      "generation_total": 0.0,
+      "query_id": "test1011",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 4,
+      "chunk_id": "553ee6962bf74076610ef76c",
+      "generation_total": 0.0,
+      "query_id": "test1011",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 3,
+      "chunk_id": "1c0a719fc675851090528d32",
+      "generation_total": 0.0,
+      "query_id": "test1011",
+      "retrieval_total": 4.0145121267956886e-07
+    },
+    {
+      "atomic_spans": 16,
+      "chunk_id": "7afb3c8846fd048e3370881e",
+      "generation_total": 0.0,
+      "query_id": "test1012",
+      "retrieval_total": 1.210329099876617e-05
+    },
+    {
+      "atomic_spans": 16,
+      "chunk_id": "dac7059e6bda2b84264e3ea5",
+      "generation_total": 0.0,
+      "query_id": "test1012",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 16,
+      "chunk_id": "ab268028c03371bcc5a1b186",
+      "generation_total": 0.0,
+      "query_id": "test1012",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 11,
+      "chunk_id": "3b6a0a2b7bfbbbed51fb2ef1",
+      "generation_total": 0.0,
+      "query_id": "test1012",
+      "retrieval_total": 2.0802531404129354e-06
+    },
+    {
+      "atomic_spans": 14,
+      "chunk_id": "b1354cc048723f7f80dbb7a7",
+      "generation_total": 0.0,
+      "query_id": "test1012",
+      "retrieval_total": 5.2951898117522204e-06
+    },
+    {
+      "atomic_spans": 5,
+      "chunk_id": "8ffe9f8614a9040c85395e42",
+      "generation_total": 0.0,
+      "query_id": "test1013",
+      "retrieval_total": 4.098998919177532e-06
+    },
+    {
+      "atomic_spans": 4,
+      "chunk_id": "233d7277508e83a2efea2fff",
+      "generation_total": 0.0,
+      "query_id": "test1013",
+      "retrieval_total": 0.0
+    },
+    {
+      "atomic_spans": 3,
+      "chunk_id": "8b683839a0545900bae6af25",
+      "generation_total": 0.0,
+      "query_id": "test1013",
+      "retrieval_total": 1.2296996757532597e-06
+    },
+    {
+      "atomic_spans": 12,
+      "chunk_id": "10abe43a9d4f10680f146027",
+      "generation_total": 0.0,
+      "query_id": "test1013",
+      "retrieval_total": 1.475639610995505e-05
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "1a7dbe48a135f9afd7c5df9a",
+      "generation_total": 0.0,
+      "query_id": "test1013",
+      "retrieval_total": 2.15197443269919e-06
+    },
+    {
+      "atomic_spans": 8,
+      "chunk_id": "eca7cd82920410e534a875ce",
+      "generation_total": 0.0,
+      "query_id": "test1014",
+      "retrieval_total": 2.740806040790744e-06
+    },
+    {
+      "atomic_spans": 12,
+      "chunk_id": "4bc8125ef89b2810633ab344",
+      "generation_total": 0.0,
+      "query_id": "test1014",
+      "retrieval_total": 1.4389231715483675e-05
+    },
+    {
+      "atomic_spans": 16,
+      "chunk_id": "e87ba5f6434a68ebfa7a9d24",
+      "generation_total": 0.0,
+      "query_id": "test1014",
+      "retrieval_total": 8.222418122372233e-06
+    },
+    {
+      "atomic_spans": 7,
+      "chunk_id": "dffb472864351b28e0abdebe",
+      "generation_total": 0.0,
+      "query_id": "test1014",
+      "retrieval_total": 1.1991026429916674e-06
+    },
+    {
+      "atomic_spans": 9,
+      "chunk_id": "a8a47e28502f4eb3c3feb308",
+      "generation_total": 0.0,
+      "query_id": "test1014",
+      "retrieval_total": 3.0834067962140046e-06
+    }
+  ],
+  "schema_version": 1
+}
