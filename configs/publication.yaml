@@ -3,6 +3,8 @@ enabled: true
 remote: origin
 branch: current
 github_repository: KljGZ/RAG_defense
+ssh_identity_file: /home/jkl/.ssh/rag_defense_github
+ssh_known_hosts_file: /home/jkl/.ssh/known_hosts
 destination_prefix: results/runs
 maximum_file_bytes: 20971520
 maximum_total_bytes: 52428800

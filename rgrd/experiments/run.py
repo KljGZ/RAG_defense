@@ -18,7 +18,7 @@ import yaml
 
 from rgrd.pipeline.state import GateDecision, PhaseRecord, RunState, StateStore
 from rgrd.provenance import utc_now
-from rgrd.publishing import publish_terminal_results
+from rgrd.publishing.github import publish_terminal_results
 from rgrd.reporting import write_all, write_pipeline_report
 from rgrd.experiments.gpu_admission import (
     log_segment_has_cuda_oom,

@@ -150,6 +150,9 @@ The publisher stages only its run-specific result directory from a fresh tempora
 clone. It refuses unpushed detector commits, unexpected GitHub remotes, unsafe paths,
 oversized evidence, or text matching credential patterns. Raw per-query events, full
 logs, models, indexes, attack artifacts, and credentials are never uploaded.
+For SSH remotes, the publication policy names the repository-specific deploy key and
+known-hosts file; the publisher enforces a non-interactive, single-identity SSH session
+with strict host-key checking for fetch, isolated clone, and push.
 
 Manual, idempotent backfill is available with:
 

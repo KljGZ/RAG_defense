@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 from pathlib import Path
 
 import pytest
 import yaml
 
-from rgrd.publishing.github import publish_terminal_results
+from rgrd.publishing.github import (
+    PublicationPolicy,
+    _ssh_transport_environment,
+    publish_terminal_results,
+)
 
 
 def _git(cwd: Path, *arguments: str) -> str:
@@ -154,3 +159,29 @@ def test_publication_requires_terminal_state(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="terminal state"):
         publish_terminal_results(source, state, policy_path=policy)
+
+
+def test_ssh_transport_uses_only_the_configured_identity(tmp_path: Path) -> None:
+    source, _, _ = _repository(tmp_path)
+    policy_path = _policy(source)
+    identity = tmp_path / "deploy-key"
+    known_hosts = tmp_path / "known_hosts"
+    identity.write_text("test-only-key-placeholder\n", encoding="utf-8")
+    known_hosts.write_text("github.com test-only-host-key\n", encoding="utf-8")
+    identity.chmod(0o600)
+    raw = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    raw["ssh_identity_file"] = str(identity.resolve())
+    raw["ssh_known_hosts_file"] = str(known_hosts.resolve())
+    policy_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    environment = _ssh_transport_environment(
+        PublicationPolicy.load(policy_path),
+        "git@github.com:KljGZ/RAG_defense.git",
+    )
+    command = shlex.split(environment["GIT_SSH_COMMAND"])
+
+    assert command[:3] == ["ssh", "-i", str(identity.resolve())]
+    assert "IdentitiesOnly=yes" in command
+    assert "BatchMode=yes" in command
+    assert "StrictHostKeyChecking=yes" in command
+    assert f"UserKnownHostsFile={known_hosts.resolve()}" in command

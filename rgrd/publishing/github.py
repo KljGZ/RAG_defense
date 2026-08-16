@@ -4,12 +4,14 @@ import argparse
 import json
 import os
 import re
+import shlex
 import shutil
+import stat
 import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 import yaml
 
@@ -43,6 +45,8 @@ class PublicationPolicy:
     remote: str
     branch: str
     github_repository: str | None
+    ssh_identity_file: Path | None
+    ssh_known_hosts_file: Path | None
     destination_prefix: Path
     maximum_file_bytes: int
     maximum_total_bytes: int
@@ -58,6 +62,16 @@ class PublicationPolicy:
             github_repository=(
                 str(raw["github_repository"]) if raw.get("github_repository") else None
             ),
+            ssh_identity_file=(
+                Path(str(raw["ssh_identity_file"])).expanduser()
+                if raw.get("ssh_identity_file")
+                else None
+            ),
+            ssh_known_hosts_file=(
+                Path(str(raw["ssh_known_hosts_file"])).expanduser()
+                if raw.get("ssh_known_hosts_file")
+                else None
+            ),
             destination_prefix=Path(str(raw.get("destination_prefix", "results/runs"))),
             maximum_file_bytes=int(raw.get("maximum_file_bytes", 20 * 1024 * 1024)),
             maximum_total_bytes=int(raw.get("maximum_total_bytes", 50 * 1024 * 1024)),
@@ -65,9 +79,16 @@ class PublicationPolicy:
         )
 
 
-def _git(cwd: Path, *arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _git(
+    cwd: Path,
+    *arguments: str,
+    check: bool = True,
+    environment_overrides: Mapping[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     environment = os.environ.copy()
     environment["GIT_TERMINAL_PROMPT"] = "0"
+    if environment_overrides:
+        environment.update(environment_overrides)
     return subprocess.run(
         ["git", *arguments],
         cwd=cwd,
@@ -76,6 +97,45 @@ def _git(cwd: Path, *arguments: str, check: bool = True) -> subprocess.Completed
         text=True,
         env=environment,
     )
+
+
+def _ssh_transport_environment(
+    policy: PublicationPolicy,
+    remote_url: str,
+) -> dict[str, str]:
+    if not (remote_url.startswith("git@") or remote_url.startswith("ssh://")):
+        return {}
+    identity = policy.ssh_identity_file
+    if identity is None:
+        return {}
+    if not identity.is_absolute():
+        raise RuntimeError("publication ssh_identity_file must be absolute")
+    if identity.is_symlink() or not identity.is_file():
+        raise RuntimeError(f"publication SSH identity is not a regular file: {identity}")
+    if os.name != "nt" and stat.S_IMODE(identity.stat().st_mode) & 0o077:
+        raise RuntimeError("publication SSH identity must not be accessible by group or others")
+
+    command = [
+        "ssh",
+        "-i",
+        str(identity),
+        "-o",
+        "IdentitiesOnly=yes",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=yes",
+    ]
+    known_hosts = policy.ssh_known_hosts_file
+    if known_hosts is not None:
+        if not known_hosts.is_absolute():
+            raise RuntimeError("publication ssh_known_hosts_file must be absolute")
+        if known_hosts.is_symlink() or not known_hosts.is_file():
+            raise RuntimeError(
+                f"publication known_hosts is not a regular file: {known_hosts}"
+            )
+        command.extend(["-o", f"UserKnownHostsFile={known_hosts}"])
+    return {"GIT_SSH_COMMAND": shlex.join(command)}
 
 
 def _atomic_json(path: Path, value: dict[str, Any]) -> None:
@@ -341,6 +401,7 @@ def publish_terminal_results(
 
     remote_url = _git(root, "remote", "get-url", policy.remote).stdout.strip()
     _validate_remote(remote_url, policy.github_repository)
+    transport_environment = _ssh_transport_environment(policy, remote_url)
     branch = (
         _git(root, "branch", "--show-current").stdout.strip()
         if policy.branch == "current"
@@ -351,7 +412,14 @@ def publish_terminal_results(
     code_commit = str(state.get("detector_code_commit") or "")
     if not re.fullmatch(r"[0-9a-f]{40}", code_commit):
         raise RuntimeError("terminal state lacks a full detector_code_commit")
-    _git(root, "fetch", "--quiet", policy.remote, branch)
+    _git(
+        root,
+        "fetch",
+        "--quiet",
+        policy.remote,
+        branch,
+        environment_overrides=transport_environment,
+    )
     ancestor = _git(root, "merge-base", "--is-ancestor", code_commit, "FETCH_HEAD", check=False)
     if ancestor.returncode != 0:
         raise RuntimeError(
@@ -383,6 +451,7 @@ def publish_terminal_results(
                 branch,
                 remote_url,
                 str(checkout),
+                environment_overrides=transport_environment,
             )
             target = checkout / destination
             if target.exists():
@@ -428,7 +497,14 @@ def publish_terminal_results(
                 "-m",
                 f"results: publish {run_id} ({state['status']})",
             )
-            _git(checkout, "push", "--quiet", "origin", f"HEAD:refs/heads/{branch}")
+            _git(
+                checkout,
+                "push",
+                "--quiet",
+                "origin",
+                f"HEAD:refs/heads/{branch}",
+                environment_overrides=transport_environment,
+            )
             result = {
                 "status": "published",
                 "run_id": run_id,

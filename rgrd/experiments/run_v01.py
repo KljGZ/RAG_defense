@@ -27,7 +27,7 @@ from rgrd.pipeline.state import (
     StateStore,
 )
 from rgrd.provenance import sha256_file, utc_now
-from rgrd.publishing import publish_terminal_results
+from rgrd.publishing.github import publish_terminal_results
 
 
 _ALLOWED = [4, 5, 6, 7]
