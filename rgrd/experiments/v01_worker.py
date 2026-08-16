@@ -20,6 +20,7 @@ from rgrd.schema import CharRange
 from rgrd.v01.donors import (
     DeterministicDonorSampler,
     oracle_token_lengths,
+    token_length,
 )
 from rgrd.v01.engine import (
     candidate_context,
@@ -324,6 +325,9 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                     sample_id=sample.sample_id,
                     anchor_lengths=anchor_lengths,
                     payload_lengths=payload_lengths,
+                    original_text=poison_chunk.text,
+                    anchor_ranges=poison_chunk.anchor_ranges_chunk,
+                    payload_ranges=poison_chunk.payload_ranges_chunk,
                     excluded_source_ids=relevant_sources,
                     forbidden_texts=[sample.query, sample.target_answer, *gold_aliases],
                     replicates=int(donor_config["donor_replicates"]),
@@ -487,6 +491,10 @@ def run_worker(args: argparse.Namespace) -> dict[str, int]:
                         ],
                         "anchor_token_lengths": list(anchor_lengths),
                         "payload_token_lengths": list(payload_lengths),
+                        "full_chunk_token_length": token_length(
+                            pipeline.generator.tokenizer, poison_chunk.text
+                        ),
+                        "all_donor_coalitions_preserve_full_token_length": True,
                     },
                     "outcomes": {
                         "actual_retrieval_hit": prepared.actual_retrieval_hit,
