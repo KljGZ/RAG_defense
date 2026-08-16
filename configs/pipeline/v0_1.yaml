@@ -1,0 +1,58 @@
+schema_version: 2
+protocol_id: RGRD-V0.1
+seed: 20260816
+
+runtime:
+  gpu_admission:
+    # Hard safety boundary.  The V0.1 runner rejects any other mapping.
+    allowed_physical_gpus: [4, 5, 6, 7]
+    excluded_physical_gpus: [0, 1, 2, 3]
+    full_model_min_free_mib: 19000
+    poll_seconds: 30
+    oom_retry_limit: 8
+    oom_retry_cooldown_seconds: 120
+    oom_retry_headroom_mib: 1024
+
+track_b:
+  name: realistic_ingestion
+  chunk_size: 256
+  chunk_overlap: 32
+  dense_top_b: 50
+  rerank_top_k: 5
+  dense_index: IndexFlatIP
+  generator_temperature: 0.0
+  generator_do_sample: false
+  generator_max_new_tokens: 32
+  answer_prefix: "FINAL_ANSWER:"
+
+models:
+  retriever:
+    name: facebook/contriever
+    local_path: /home/jkl/RAG_attack/models/contriever
+    revision: 2bd46a25019aeea091fd42d1f0fd4801675cf699
+    pooling: mean_masked
+    normalize: false
+  reranker:
+    name: cross-encoder/ms-marco-MiniLM-L-6-v2
+    local_path: /mnt/data/jkl/RGRD_V0/models/ms-marco-MiniLM-L-6-v2
+    revision: 233902d25c440f23af6f7d6e94d2946bac0bee0a
+  generator:
+    name: Qwen/Qwen2.5-7B-Instruct
+    local_path: /mnt/data/jkl/RGRD_V0/models/Qwen2.5-7B-Instruct
+    revision: a09a35458c702b33eeacc393d103063234e8bc28
+    dtype: bfloat16
+    attention_implementation: eager
+
+oracle_mechanism:
+  fixed_poison_context_index_zero_based: 1
+  donor_replicates: 8
+  minimum_valid_donor_replicates: 6
+  donor_seed: 20260816
+  direction_agreement_minimum: 0.80
+  force_reranker_for_interventions: true
+  generation_value: target_minus_fixed_best_gold_mean_token_logp
+  retrieval_value: frozen_two_stage_bottleneck_margin
+  forbid_clipping: true
+  forbid_cross_channel_normalization: true
+  forbid_combined_score: true
+

@@ -25,13 +25,41 @@ def event_provenance(
     *,
     detector_code_commit: str,
     model_revisions: dict[str, str],
+    pipeline_config: Path | None = None,
 ) -> dict[str, Any]:
+    config_path = pipeline_config or (root / "configs/pipeline/v0.yaml")
     return {
         "schema_version": 2,
         "detector_code_commit": detector_code_commit,
         "model_revisions": dict(sorted(model_revisions.items())),
-        "pipeline_config_sha256": sha256_file(root / "configs/pipeline/v0.yaml"),
+        "pipeline_config_sha256": sha256_file(config_path),
     }
+
+
+def v01_event_provenance(
+    root: Path,
+    *,
+    detector_code_commit: str,
+    model_revisions: dict[str, str],
+    selection_manifest: Path,
+) -> dict[str, Any]:
+    value = event_provenance(
+        root,
+        detector_code_commit=detector_code_commit,
+        model_revisions=model_revisions,
+        pipeline_config=root / "configs/pipeline/v0_1.yaml",
+    )
+    value.update(
+        {
+            "schema_version": 3,
+            "protocol_id": "RGRD-V0.1-oracle-mechanism-audit",
+            "experiment_config_sha256": sha256_file(
+                root / "configs/experiments/v0_1_preregistration.yaml"
+            ),
+            "selection_manifest_sha256": sha256_file(selection_manifest),
+        }
+    )
+    return value
 
 
 def project_provenance(root: Path) -> dict[str, Any]:

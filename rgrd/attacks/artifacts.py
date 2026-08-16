@@ -37,6 +37,23 @@ class AttackSample:
     original_retrieval_hit: bool
     original_end_to_end_success: bool
     provenance: dict[str, str]
+    gold_answers: tuple[str, ...] = ()
+
+
+def _answer_aliases(value: object) -> tuple[str, ...]:
+    """Preserve benchmark answer aliases without guessing new aliases."""
+
+    raw = value if isinstance(value, list) else [value]
+    aliases: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        alias = str(item or "").strip()
+        normalized = _normalized(alias)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        aliases.append(alias)
+    return tuple(aliases)
 
 
 def attack_succeeds(sample: AttackSample, answer: str) -> bool:
@@ -106,6 +123,7 @@ def load_poisonedrag_blackbox(results_root: Path) -> list[AttackSample]:
                         original_retrieval_hit=True,
                         original_end_to_end_success=_contains_answer(output, target),
                         provenance={"result_path": str(path), "row": str(row_index)},
+                        gold_answers=_answer_aliases(row.get("answer")),
                     )
                 )
     return samples
@@ -161,6 +179,7 @@ def load_poisonedrag_whitebox(path: Path) -> list[AttackSample]:
                     original_retrieval_hit=True,
                     original_end_to_end_success=_contains_answer(output, target),
                     provenance={"result_path": str(path), "row": str(row_index)},
+                    gold_answers=_answer_aliases(row.get("answer")),
                 )
             )
     return samples
@@ -252,6 +271,7 @@ def load_phantom_samples(results_root: Path) -> list[AttackSample]:
                         "seed": seed,
                         "command": command,
                     },
+                    gold_answers=(),
                 )
             )
     return samples

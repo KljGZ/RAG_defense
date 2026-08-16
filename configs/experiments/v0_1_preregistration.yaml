@@ -1,0 +1,78 @@
+schema_version: 2
+protocol_id: RGRD-V0.1-oracle-mechanism-audit
+amendment_id: V01-001-correct-v0-estimability-and-scale
+frozen_parent_tag: rgrd-v0.0-frozen-20260816
+
+claim:
+  type: mechanism_audit_only
+  statement: >-
+    Within the frozen NQ PoisonedRAG-B/W artifacts, the Oracle retrieval anchor has
+    greater retrieval Shapley contribution than the Oracle payload, and the Oracle
+    payload has greater target-versus-gold generation Shapley contribution than the
+    Oracle anchor.
+  not_a_deployable_detector: true
+  excluded_generalizations:
+    - Phantom
+    - Joint-GCG
+    - multi-chunk distributed attacks
+    - latent backdoors
+    - GraphRAG
+    - multimodal RAG
+    - attack families other than PoisonedRAG-B/W
+
+scope:
+  dataset: nq
+  active_attack_families: [PoisonedRAG-B, PoisonedRAG-W]
+  informational_only_attack_families: [Phantom]
+  defense_time: post-reranking shadow-generation pre-release
+  unit: final_chunk_conditioned_on_query
+  access: white_box
+
+sampling:
+  independent_unit: query_id
+  canonical_rule: lexicographically_smallest_sample_id_within_query
+  outcome_conditioning_forbidden: true
+  minimum_queries_per_family: 30
+  use_all_format_and_cochunk_valid_queries: true
+
+outcomes:
+  retrieval: poison_survives_actual_dense_top_b_and_reranker_top_k
+  forced_generation: poison_at_fixed_zero_based_context_index_1_succeeds
+  strata: [RG, R_only, G_only, neither]
+  use: association_and_stratification_only
+
+oracle:
+  players: [anchor, payload]
+  coalitions: [empty, anchor, payload, anchor_plus_payload]
+  primary_intervention: clean_same_token_length_donor_replacement
+  donor_pairs_per_query: 8
+  minimum_valid_pairs: 6
+  robustness_intervention: attention_hole_mask
+  direction_agreement_minimum: 0.80
+  retrieval_contrast: phi_anchor_retrieval_minus_phi_payload_retrieval
+  generation_contrast: phi_payload_generation_minus_phi_anchor_generation
+
+statistics:
+  primary_tests:
+    - PoisonedRAG-B/retrieval_contrast
+    - PoisonedRAG-B/generation_contrast
+    - PoisonedRAG-W/retrieval_contrast
+    - PoisonedRAG-W/generation_contrast
+  test: exact_one_sided_sign_test
+  familywise_correction: Holm
+  alpha: 0.05
+  bootstrap:
+    unit: query
+    statistic: median
+    replicates: 10000
+    confidence: 0.95
+  pass_requires:
+    - holm_adjusted_p_below_0.05
+    - bootstrap_lower_bound_above_0
+  association:
+    test: family_specific_outcome_label_permutation
+    effect_size: cliffs_delta
+    inferential_role: secondary_only
+
+gate_statuses: [PASS, FAIL_TESTED, NOT_ESTIMABLE, SKIPPED]
+

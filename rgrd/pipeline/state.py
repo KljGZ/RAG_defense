@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import os
 import tempfile
+from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from rgrd.provenance import utc_now
 
@@ -14,12 +15,33 @@ class StateModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class GateStatus(str, Enum):
+    PASS = "PASS"
+    FAIL_TESTED = "FAIL_TESTED"
+    NOT_ESTIMABLE = "NOT_ESTIMABLE"
+    SKIPPED = "SKIPPED"
+
+
 class GateDecision(StateModel):
-    gate: Literal["gate_1", "gate_2", "gate_3", "gate_robustness"]
-    passed: bool
+    gate: str
+    passed: bool | None = None
+    status: GateStatus | None = None
     decided_at: str = Field(default_factory=utc_now)
     evidence_paths: list[str] = Field(default_factory=list)
     reasons: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def reconcile_legacy_passed_flag(self) -> "GateDecision":
+        if self.status is None and self.passed is None:
+            raise ValueError("gate decision requires status or passed")
+        if self.status is None:
+            self.status = GateStatus.PASS if self.passed else GateStatus.FAIL_TESTED
+        derived = self.status == GateStatus.PASS
+        if self.passed is None:
+            self.passed = derived
+        elif self.passed != derived:
+            raise ValueError("gate status and legacy passed flag disagree")
+        return self
 
 
 class PhaseRecord(StateModel):
@@ -83,5 +105,7 @@ def require_gate(state: RunState, gate: str) -> None:
     decision = state.gates.get(gate)
     if decision is None:
         raise RuntimeError(f"{gate} has not been decided")
-    if not decision.passed:
-        raise RuntimeError(f"{gate} failed: {'; '.join(decision.reasons)}")
+    if decision.status != GateStatus.PASS:
+        raise RuntimeError(
+            f"{gate} is {decision.status.value}: {'; '.join(decision.reasons)}"
+        )

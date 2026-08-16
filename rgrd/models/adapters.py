@@ -100,6 +100,20 @@ def _overlap_indices(
     return indices
 
 
+def _overlap_indices_many(
+    offsets: Sequence[Sequence[int]],
+    spans: Sequence[CharRange],
+    *,
+    eligible: Iterable[int] | None = None,
+) -> list[int]:
+    if not spans:
+        raise ValueError("at least one intervention span is required")
+    values: set[int] = set()
+    for span in spans:
+        values.update(_overlap_indices(offsets, span, eligible=eligible))
+    return sorted(values)
+
+
 def _replacement_ids(tokenizer: Any, donor_text: str, length: int) -> list[int]:
     encoded = tokenizer(donor_text, add_special_tokens=False, truncation=False)
     values = encoded["input_ids"]
@@ -168,6 +182,9 @@ class DenseRetriever:
         return np.ascontiguousarray(np.concatenate(values), dtype=np.float32)
 
     def encode_hidden(self, text: str, span: CharRange) -> np.ndarray:
+        return self.encode_hidden_ranges(text, [span])
+
+    def encode_hidden_ranges(self, text: str, spans: Sequence[CharRange]) -> np.ndarray:
         encoded = self.tokenizer(
             text,
             padding=False,
@@ -177,7 +194,7 @@ class DenseRetriever:
             return_tensors="pt",
         )
         offsets = encoded.pop("offset_mapping")[0].tolist()
-        indices = _overlap_indices(offsets, span)
+        indices = _overlap_indices_many(offsets, spans)
         encoded["input_ids"] = encoded["input_ids"].clone()
         encoded["attention_mask"] = encoded["attention_mask"].clone()
         encoded["input_ids"][0, indices] = _neutral_token_id(self.tokenizer)
@@ -271,6 +288,11 @@ class CrossEncoderReranker:
         return np.concatenate(scores) if scores else np.empty(0, dtype=np.float32)
 
     def score_hidden(self, query: str, chunk: str, span: CharRange) -> float:
+        return self.score_hidden_ranges(query, chunk, [span])
+
+    def score_hidden_ranges(
+        self, query: str, chunk: str, spans: Sequence[CharRange]
+    ) -> float:
         encoded = self.tokenizer(
             query,
             chunk,
@@ -285,7 +307,7 @@ class CrossEncoderReranker:
         chunk_indices = [
             index for index, sequence_id in enumerate(sequence_ids) if sequence_id == 1
         ]
-        indices = _overlap_indices(offsets, span, eligible=chunk_indices)
+        indices = _overlap_indices_many(offsets, spans, eligible=chunk_indices)
         encoded["input_ids"] = encoded["input_ids"].clone()
         encoded["attention_mask"] = encoded["attention_mask"].clone()
         encoded["input_ids"][0, indices] = _neutral_token_id(self.tokenizer)
@@ -319,6 +341,16 @@ class CrossEncoderReranker:
 class PromptLayout:
     prompt: str
     chunk_ranges: dict[str, CharRange]
+
+
+@dataclass(frozen=True)
+class GenerationAudit:
+    answer: str
+    continuation: str
+    generated_tokens: int
+    terminated_by_eos: bool
+    truncated: bool
+    strict_single_line: bool
 
 
 class CausalAnswerGenerator:
@@ -408,7 +440,7 @@ class CausalAnswerGenerator:
             cursor = end
         return PromptLayout(prompt=prompt, chunk_ranges=ranges)
 
-    def generate_shadow(self, layout: PromptLayout) -> tuple[str, str]:
+    def generate_shadow_audited(self, layout: PromptLayout) -> GenerationAudit:
         torch = _torch()
         set_deterministic(self.seed)
         encoded = self.tokenizer(layout.prompt, return_tensors="pt", add_special_tokens=True)
@@ -425,11 +457,32 @@ class CausalAnswerGenerator:
                 pad_token_id=self.tokenizer.pad_token_id,
                 eos_token_id=self.tokenizer.eos_token_id,
             )
-        continuation = self.tokenizer.decode(
-            output[0, encoded["input_ids"].shape[-1] :], skip_special_tokens=True
-        )
+        continuation_ids = output[0, encoded["input_ids"].shape[-1] :]
+        continuation = self.tokenizer.decode(continuation_ids, skip_special_tokens=True)
         answer = parse_final_answer("FINAL_ANSWER: " + continuation)
-        return answer, continuation
+        eos_values = self.tokenizer.eos_token_id
+        eos_ids = (
+            {int(value) for value in eos_values}
+            if isinstance(eos_values, (list, tuple, set))
+            else ({int(eos_values)} if eos_values is not None else set())
+        )
+        generated_ids = [int(value) for value in continuation_ids.tolist()]
+        terminated_by_eos = bool(generated_ids and generated_ids[-1] in eos_ids)
+        truncated = len(generated_ids) >= self.max_new_tokens and not terminated_by_eos
+        nonempty_lines = [line for line in continuation.splitlines() if line.strip()]
+        strict_single_line = len(nonempty_lines) == 1
+        return GenerationAudit(
+            answer=answer,
+            continuation=continuation,
+            generated_tokens=len(generated_ids),
+            terminated_by_eos=terminated_by_eos,
+            truncated=truncated,
+            strict_single_line=strict_single_line,
+        )
+
+    def generate_shadow(self, layout: PromptLayout) -> tuple[str, str]:
+        audit = self.generate_shadow_audited(layout)
+        return audit.answer, audit.continuation
 
     def teacher_score(
         self,
@@ -438,6 +491,7 @@ class CausalAnswerGenerator:
         *,
         chunk_id: str | None = None,
         hidden_span: CharRange | None = None,
+        hidden_spans: Sequence[CharRange] | None = None,
         donor_text: str | None = None,
     ) -> float:
         torch = _torch()
@@ -454,17 +508,27 @@ class CausalAnswerGenerator:
         answer_indices = _overlap_indices(offsets, answer_chars)
         answer_mask = torch.zeros_like(encoded["input_ids"], dtype=torch.bool)
         answer_mask[0, answer_indices] = True
-        if hidden_span is not None:
+        if hidden_span is not None and hidden_spans is not None:
+            raise ValueError("use hidden_span or hidden_spans, not both")
+        intervention_spans = (
+            list(hidden_spans)
+            if hidden_spans is not None
+            else ([] if hidden_span is None else [hidden_span])
+        )
+        if intervention_spans:
             if chunk_id is None or chunk_id not in layout.chunk_ranges:
                 raise ValueError("hidden intervention requires a mapped chunk_id")
             chunk_range = layout.chunk_ranges[chunk_id]
-            prompt_span = CharRange(
-                start=chunk_range.start + hidden_span.start,
-                end=chunk_range.start + hidden_span.end,
-            )
-            if prompt_span.end > chunk_range.end:
+            prompt_spans = [
+                CharRange(
+                    start=chunk_range.start + span.start,
+                    end=chunk_range.start + span.end,
+                )
+                for span in intervention_spans
+            ]
+            if any(span.end > chunk_range.end for span in prompt_spans):
                 raise ValueError("hidden span exceeds the target chunk")
-            hidden_indices = _overlap_indices(offsets, prompt_span)
+            hidden_indices = _overlap_indices_many(offsets, prompt_spans)
             if set(hidden_indices) & set(answer_indices):
                 raise AssertionError("chunk intervention overlaps answer tokens")
             encoded["input_ids"] = encoded["input_ids"].clone()
@@ -472,11 +536,13 @@ class CausalAnswerGenerator:
             if donor_text is None:
                 encoded["input_ids"][0, hidden_indices] = _neutral_token_id(self.tokenizer)
                 encoded["attention_mask"][0, hidden_indices] = 0
-            else:
+            elif len(intervention_spans) == 1:
                 replacements = _replacement_ids(self.tokenizer, donor_text, len(hidden_indices))
                 encoded["input_ids"][0, hidden_indices] = torch.tensor(
                     replacements, dtype=torch.long
                 )
+            else:
+                raise ValueError("donor_text replacement supports one span; use coalition text")
         input_ids = encoded["input_ids"].to(self.device)
         attention_mask = encoded["attention_mask"].to(self.device)
         answer_mask = answer_mask.to(self.device)

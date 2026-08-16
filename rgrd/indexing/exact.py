@@ -332,17 +332,24 @@ class ExactIndexBundle:
     def close(self) -> None:
         self.connection.close()
 
-    def search(
-        self, query_embedding: np.ndarray, top_k: int
-    ) -> tuple[np.ndarray, list[IndexedChunk]]:
-        query = np.ascontiguousarray(query_embedding.reshape(1, -1), dtype=np.float32)
-        scores, identifiers = self.index.search(query, top_k)
-        ids = [int(value) for value in identifiers[0] if value >= 0]
-        placeholders = ",".join("?" for _ in ids)
+    @property
+    def chunk_count(self) -> int:
+        return int(self.index.ntotal)
+
+    def fetch_chunks(self, faiss_ids: Iterable[int]) -> list[IndexedChunk]:
+        """Read exact indexed chunks in caller order without mutating the index."""
+
+        ids = [int(value) for value in faiss_ids]
+        if not ids:
+            return []
+        if any(value < 0 or value >= self.chunk_count for value in ids):
+            raise IndexError("FAISS donor identifier is outside the exact index")
+        unique = list(dict.fromkeys(ids))
+        placeholders = ",".join("?" for _ in unique)
         rows = self.connection.execute(
             f"SELECT c.faiss_id, c.payload, s.payload FROM chunks c JOIN sources s "
             f"ON c.source_doc_id=s.source_doc_id WHERE c.faiss_id IN ({placeholders})",
-            ids,
+            unique,
         ).fetchall()
         mapped = {
             int(row[0]): IndexedChunk(
@@ -352,7 +359,18 @@ class ExactIndexBundle:
             )
             for row in rows
         }
-        chunks = [mapped[value] for value in ids]
+        if len(mapped) != len(unique):
+            missing = sorted(set(unique) - set(mapped))
+            raise RuntimeError(f"index metadata is missing FAISS rows: {missing}")
+        return [mapped[value] for value in ids]
+
+    def search(
+        self, query_embedding: np.ndarray, top_k: int
+    ) -> tuple[np.ndarray, list[IndexedChunk]]:
+        query = np.ascontiguousarray(query_embedding.reshape(1, -1), dtype=np.float32)
+        scores, identifiers = self.index.search(query, top_k)
+        ids = [int(value) for value in identifiers[0] if value >= 0]
+        chunks = self.fetch_chunks(ids)
         return scores[0, : len(ids)].astype(np.float32), chunks
 
 
