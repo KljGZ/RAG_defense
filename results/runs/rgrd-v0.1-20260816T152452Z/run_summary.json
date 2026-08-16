@@ -1,0 +1,72 @@
+{
+  "created_at": "2026-08-16T15:24:52.049549+00:00",
+  "detector_code_commit": "10eab757e6387b4f8e69a477a9ee67b8681a780d",
+  "errors": [
+    "terminal gate status: primary=FAIL_TESTED, robustness=FAIL_TESTED"
+  ],
+  "experiment_config_sha256": "f1d3c946febff370c530757928f09d343afd39e08d422406848dea02f60c20ef",
+  "gates": {
+    "gate_v01": {
+      "decided_at": "2026-08-16T16:50:16.876247+00:00",
+      "evidence_paths": [
+        "/mnt/data/jkl/RGRD_V0/artifacts/v01/statistics/v0_1_results.json",
+        "/mnt/data/jkl/RGRD_V0/artifacts/v01/reports/V0_1_final_report.md"
+      ],
+      "gate": "gate_v01",
+      "passed": false,
+      "reasons": [
+        "one or more corrected family-specific tests failed"
+      ],
+      "status": "FAIL_TESTED"
+    },
+    "gate_v01_robustness": {
+      "decided_at": "2026-08-16T16:50:16.876343+00:00",
+      "evidence_paths": [
+        "/mnt/data/jkl/RGRD_V0/artifacts/v01/statistics/v0_1_results.json",
+        "/mnt/data/jkl/RGRD_V0/artifacts/v01/reports/V0_1_final_report.md"
+      ],
+      "gate": "gate_v01_robustness",
+      "passed": false,
+      "reasons": [
+        "attention-hole/donor direction agreement audit"
+      ],
+      "status": "FAIL_TESTED"
+    }
+  },
+  "model_revisions": {
+    "generator": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "reranker": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+    "retriever": "2bd46a25019aeea091fd42d1f0fd4801675cf699"
+  },
+  "phases": {
+    "combine_v01_statistics": {
+      "error": null,
+      "finished_at": "2026-08-16T16:50:16.878395+00:00",
+      "started_at": "2026-08-16T16:49:58.733049+00:00",
+      "status": "passed"
+    },
+    "freeze_v0_legacy": {
+      "error": null,
+      "finished_at": "2026-08-16T15:24:54.408105+00:00",
+      "started_at": "2026-08-16T15:24:52.077901+00:00",
+      "status": "passed"
+    },
+    "oracle_shapley_workers": {
+      "error": null,
+      "finished_at": "2026-08-16T16:49:58.731991+00:00",
+      "started_at": "2026-08-16T15:24:56.796924+00:00",
+      "status": "passed"
+    },
+    "prepare_v01_manifests": {
+      "error": null,
+      "finished_at": "2026-08-16T15:24:56.795116+00:00",
+      "started_at": "2026-08-16T15:24:54.410049+00:00",
+      "status": "passed"
+    }
+  },
+  "pipeline_config_sha256": "98a6f260c9ecedc4f94e2a9a63f912ba49eaacb440778897366edd9c4af98cac",
+  "run_id": "rgrd-v0.1-20260816T152452Z",
+  "schema_version": 1,
+  "status": "failed",
+  "updated_at": "2026-08-16T16:50:16.879924+00:00"
+}

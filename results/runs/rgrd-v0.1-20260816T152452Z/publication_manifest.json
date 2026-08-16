@@ -1,0 +1,48 @@
+{
+  "detector_code_commit": "10eab757e6387b4f8e69a477a9ee67b8681a780d",
+  "evidence": [
+    {
+      "bytes": 4171,
+      "destination": "evidence/artifacts/v01/reports/V0_1_final_report.md",
+      "sha256": "79d4ab6304bd6d0306538cdc919bd07ca071a80a01004843751d51ac3bd9abc9",
+      "source": "artifacts/v01/reports/V0_1_final_report.md"
+    },
+    {
+      "bytes": 7305,
+      "destination": "evidence/artifacts/v01/statistics/v0_1_results.json",
+      "sha256": "ff4ad8f7669ad96a876609afcdc0a6a8ad63bdf88e73abc2e08c65ecb3cb8b29",
+      "source": "artifacts/v01/statistics/v0_1_results.json"
+    },
+    {
+      "bytes": 1358,
+      "destination": "evidence/artifacts/v0_legacy/V0_corrected_final_report.md",
+      "sha256": "78d1fd79aea6ba031749ff2c651a7a55117e2092ecc30f6e7a0112fd6362f40e",
+      "source": "artifacts/v0_legacy/V0_corrected_final_report.md"
+    },
+    {
+      "bytes": 832,
+      "destination": "evidence/artifacts/v0_legacy/V0_exploratory_salvage_report.md",
+      "sha256": "5c11bf71917e5cf3c8dda6884a9ed4da2c0ad38e6c9a9f20ad10f45d56639a0f",
+      "source": "artifacts/v0_legacy/V0_exploratory_salvage_report.md"
+    },
+    {
+      "bytes": 3274,
+      "destination": "failure_runner_tail.log",
+      "sha256": "6e8de757a78d395f921c0d5d3f3cc802cd128e0c003215440babd4d257d63fe2",
+      "source": "terminal runner log tail"
+    }
+  ],
+  "excluded_classes": [
+    "raw per-query events",
+    "models and indexes",
+    "attack artifacts",
+    "full logs",
+    "credentials and secrets"
+  ],
+  "experiment_config_sha256": "f1d3c946febff370c530757928f09d343afd39e08d422406848dea02f60c20ef",
+  "pipeline_config_sha256": "98a6f260c9ecedc4f94e2a9a63f912ba49eaacb440778897366edd9c4af98cac",
+  "published_at": "2026-08-16T17:39:51.399497+00:00",
+  "run_id": "rgrd-v0.1-20260816T152452Z",
+  "schema_version": 1,
+  "terminal_status": "failed"
+}

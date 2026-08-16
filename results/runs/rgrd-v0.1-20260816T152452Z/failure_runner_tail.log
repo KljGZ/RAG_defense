@@ -1,0 +1,22 @@
+[2026-08-16T15:24:52.077695+00:00] start run_id=rgrd-v0.1-20260816T152452Z commit=10eab757e6387b4f8e69a477a9ee67b8681a780d allowed=[4, 5, 6, 7] excluded=[0, 1, 2, 3]
+[2026-08-16T15:24:52.090102+00:00] start v01-freeze-v0: /mnt/data/jkl/conda-envs/rgrd-v0/bin/python -m rgrd.experiments.legacy_v0 --root /mnt/data/jkl/RGRD_V0
+[2026-08-16T15:24:54.411024+00:00] start v01-prepare-poisonedrag_b: /mnt/data/jkl/conda-envs/rgrd-v0/bin/python -m rgrd.experiments.v01_prepare --root /mnt/data/jkl/RGRD_V0 --attack-root /home/jkl/RAG_attack --family PoisonedRAG-B --dataset nq --output /mnt/data/jkl/RGRD_V0/artifacts/v01/manifests/poisonedrag_b.json
+[2026-08-16T15:24:55.638879+00:00] start v01-prepare-poisonedrag_w: /mnt/data/jkl/conda-envs/rgrd-v0/bin/python -m rgrd.experiments.v01_prepare --root /mnt/data/jkl/RGRD_V0 --attack-root /home/jkl/RAG_attack --family PoisonedRAG-W --dataset nq --output /mnt/data/jkl/RGRD_V0/artifacts/v01/manifests/poisonedrag_w.json
+[2026-08-16T16:14:45.784333+00:00] launched PoisonedRAG-B/shard-00-of-04 pid=2156266 physical_gpu=7 retry=0
+[2026-08-16T16:15:15.935761+00:00] launched PoisonedRAG-W/shard-00-of-04 pid=2156758 physical_gpu=6 retry=0
+[2026-08-16T16:16:16.322373+00:00] launched PoisonedRAG-B/shard-01-of-04 pid=2158036 physical_gpu=5 retry=0
+[2026-08-16T16:16:16.337901+00:00] launched PoisonedRAG-W/shard-01-of-04 pid=2158037 physical_gpu=4 retry=0
+[2026-08-16T16:26:19.809672+00:00] completed PoisonedRAG-B/shard-00-of-04 on physical_gpu=7
+[2026-08-16T16:26:19.967950+00:00] launched PoisonedRAG-B/shard-02-of-04 pid=2160338 physical_gpu=7 retry=0
+[2026-08-16T16:26:49.997656+00:00] completed PoisonedRAG-W/shard-00-of-04 on physical_gpu=6
+[2026-08-16T16:26:49.997765+00:00] completed PoisonedRAG-W/shard-01-of-04 on physical_gpu=4
+[2026-08-16T16:26:50.096629+00:00] launched PoisonedRAG-W/shard-02-of-04 pid=2161008 physical_gpu=6 retry=0
+[2026-08-16T16:26:50.109138+00:00] launched PoisonedRAG-B/shard-03-of-04 pid=2161009 physical_gpu=4 retry=0
+[2026-08-16T16:28:20.465660+00:00] completed PoisonedRAG-B/shard-01-of-04 on physical_gpu=5
+[2026-08-16T16:28:20.640761+00:00] launched PoisonedRAG-W/shard-03-of-04 pid=2162517 physical_gpu=5 retry=0
+[2026-08-16T16:39:54.749665+00:00] completed PoisonedRAG-B/shard-03-of-04 on physical_gpu=4
+[2026-08-16T16:41:25.349676+00:00] completed PoisonedRAG-W/shard-02-of-04 on physical_gpu=6
+[2026-08-16T16:41:25.349789+00:00] completed PoisonedRAG-W/shard-03-of-04 on physical_gpu=5
+[2026-08-16T16:49:58.541729+00:00] completed PoisonedRAG-B/shard-02-of-04 on physical_gpu=7
+[2026-08-16T16:49:58.733997+00:00] start v01-combine: /mnt/data/jkl/conda-envs/rgrd-v0/bin/python -m rgrd.experiments.combine_v01 --root /mnt/data/jkl/RGRD_V0 --input-dir /mnt/data/jkl/RGRD_V0/artifacts/v01/events --output-json /mnt/data/jkl/RGRD_V0/artifacts/v01/statistics/v0_1_results.json --output-report /mnt/data/jkl/RGRD_V0/artifacts/v01/reports/V0_1_final_report.md --manifest PoisonedRAG-B=/mnt/data/jkl/RGRD_V0/artifacts/v01/manifests/poisonedrag_b.json --manifest PoisonedRAG-W=/mnt/data/jkl/RGRD_V0/artifacts/v01/manifests/poisonedrag_w.json
+[2026-08-16T16:50:16.881183+00:00] terminal primary=FAIL_TESTED robustness=FAIL_TESTED report=/mnt/data/jkl/RGRD_V0/artifacts/v01/reports/V0_1_final_report.md

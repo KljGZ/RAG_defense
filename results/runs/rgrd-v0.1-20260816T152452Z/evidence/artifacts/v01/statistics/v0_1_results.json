@@ -1,0 +1,240 @@
+{
+  "attrition": {
+    "PoisonedRAG-B": {
+      "canonical_samples": 100,
+      "checks": {
+        "actual_retrieval_hit": 98,
+        "anchor_payload_cochunk": 100,
+        "donor_pairs_valid": 98,
+        "forced_context_success": 42,
+        "forced_generation_valid": 98,
+        "gold_aliases_valid": 100,
+        "mechanism_scores_finite": 98,
+        "natural_end_to_end_success": 33,
+        "natural_generation_valid": 100,
+        "oracle_token_partitions_valid": 98,
+        "source_ranges_valid": 100,
+        "target_distinct_from_gold": 100
+      },
+      "duplicate_samples_discarded": 379,
+      "eligible_rows": 98,
+      "ineligible_reasons": {
+        "forced_generation_format": 2
+      },
+      "ineligible_rows": 2,
+      "loaded_samples": 479,
+      "rule": "lexicographically smallest sample_id within each query_id",
+      "unique_query_ids": 100,
+      "worker_rows": 100
+    },
+    "PoisonedRAG-W": {
+      "canonical_samples": 100,
+      "checks": {
+        "actual_retrieval_hit": 91,
+        "anchor_payload_cochunk": 100,
+        "donor_pairs_valid": 92,
+        "forced_context_success": 34,
+        "forced_generation_valid": 92,
+        "gold_aliases_valid": 100,
+        "mechanism_scores_finite": 92,
+        "natural_end_to_end_success": 31,
+        "natural_generation_valid": 95,
+        "oracle_token_partitions_valid": 92,
+        "source_ranges_valid": 100,
+        "target_distinct_from_gold": 100
+      },
+      "duplicate_samples_discarded": 397,
+      "eligible_rows": 92,
+      "ineligible_reasons": {
+        "forced_generation_format": 3,
+        "natural_generation_format": 5
+      },
+      "ineligible_rows": 8,
+      "loaded_samples": 497,
+      "rule": "lexicographically smallest sample_id within each query_id",
+      "unique_query_ids": 100,
+      "worker_rows": 100
+    }
+  },
+  "claim_boundary": {
+    "excluded_generalizations": [
+      "Phantom",
+      "Joint-GCG",
+      "multi-chunk distributed attacks",
+      "latent backdoors",
+      "GraphRAG",
+      "multimodal RAG",
+      "attack families other than PoisonedRAG-B/W"
+    ],
+    "not_a_deployable_detector": true,
+    "statement": "Within the frozen NQ PoisonedRAG-B/W artifacts, the Oracle retrieval anchor has greater retrieval Shapley contribution than the Oracle payload, and the Oracle payload has greater target-versus-gold generation Shapley contribution than the Oracle anchor.",
+    "type": "mechanism_audit_only"
+  },
+  "gate_v01": {
+    "minimum_queries_per_family": 30,
+    "reasons": [
+      "one or more corrected family-specific tests failed"
+    ],
+    "status": "FAIL_TESTED"
+  },
+  "generated_at": "2026-08-16T16:50:16.499281+00:00",
+  "identifiable_queries": {
+    "PoisonedRAG-B": 98,
+    "PoisonedRAG-W": 92
+  },
+  "mask_direction_robustness": {
+    "families": {
+      "PoisonedRAG-B": {
+        "generation_mean_agreement": 0.9336734693877551,
+        "minimum": 0.8,
+        "n": 98,
+        "passed": false,
+        "retrieval_mean_agreement": 0.7385204081632653
+      },
+      "PoisonedRAG-W": {
+        "generation_mean_agreement": 0.9279891304347826,
+        "minimum": 0.8,
+        "n": 92,
+        "passed": true,
+        "retrieval_mean_agreement": 0.9551630434782609
+      }
+    },
+    "status": "FAIL_TESTED"
+  },
+  "outcome_associations": {
+    "PoisonedRAG-B/C_G~G_f": {
+      "bootstrap_ci_95": [
+        3.896420145047273,
+        8.217281683296278
+      ],
+      "cliffs_delta": 0.5102040816326531,
+      "difference_in_medians": 6.372116147191662,
+      "failures": 56,
+      "inferential_role": "secondary association only; not part of the mechanism gate",
+      "n": 98,
+      "one_sided_permutation_p_value": 0.00019998000199980003,
+      "status": "ESTIMATED_SECONDARY",
+      "successes": 42
+    },
+    "PoisonedRAG-B/C_R~R": {
+      "reason": "association is not estimable without both outcome classes",
+      "status": "NOT_ESTIMABLE"
+    },
+    "PoisonedRAG-W/C_G~G_f": {
+      "bootstrap_ci_95": [
+        4.061302341664941,
+        9.925964577214828
+      ],
+      "cliffs_delta": 0.5476673427991886,
+      "difference_in_medians": 6.904513247304749,
+      "failures": 58,
+      "inferential_role": "secondary association only; not part of the mechanism gate",
+      "n": 92,
+      "one_sided_permutation_p_value": 0.00029997000299970003,
+      "status": "ESTIMATED_SECONDARY",
+      "successes": 34
+    },
+    "PoisonedRAG-W/C_R~R": {
+      "bootstrap_ci_95": [
+        -2.139866888126499,
+        0.3186901335949952
+      ],
+      "cliffs_delta": -0.16483516483516483,
+      "difference_in_medians": -0.7836599822365935,
+      "failures": 1,
+      "inferential_role": "secondary association only; not part of the mechanism gate",
+      "n": 92,
+      "one_sided_permutation_p_value": 0.5911408859114089,
+      "status": "ESTIMATED_SECONDARY",
+      "successes": 91
+    }
+  },
+  "outcome_strata": {
+    "PoisonedRAG-B": {
+      "G_only": 0,
+      "RG": 42,
+      "R_only": 56,
+      "neither": 0
+    },
+    "PoisonedRAG-W": {
+      "G_only": 0,
+      "RG": 34,
+      "R_only": 57,
+      "neither": 1
+    }
+  },
+  "primary_tests": {
+    "PoisonedRAG-B/C_G": {
+      "bootstrap_ci_95": [
+        3.655297743884148,
+        7.549189531127922
+      ],
+      "holm_adjusted_p_value": 1.2495556738700827e-27,
+      "median": 5.626056629430423,
+      "n": 98,
+      "negative": 1,
+      "passed": true,
+      "positive": 97,
+      "positive_proportion": 0.9897959183673469,
+      "raw_p_value": 3.1238891846752067e-28,
+      "zero": 0
+    },
+    "PoisonedRAG-B/C_R": {
+      "bootstrap_ci_95": [
+        -0.07693888432978446,
+        0.6051843479777279
+      ],
+      "holm_adjusted_p_value": 0.26640559441119166,
+      "median": 0.10913063576524884,
+      "n": 98,
+      "negative": 43,
+      "passed": false,
+      "positive": 55,
+      "positive_proportion": 0.5612244897959183,
+      "raw_p_value": 0.13320279720559583,
+      "zero": 0
+    },
+    "PoisonedRAG-W/C_G": {
+      "bootstrap_ci_95": [
+        2.773024559020996,
+        6.858961196926787
+      ],
+      "holm_adjusted_p_value": 5.884947131961253e-16,
+      "median": 4.554103076457977,
+      "n": 92,
+      "negative": 9,
+      "passed": true,
+      "positive": 83,
+      "positive_proportion": 0.9021739130434783,
+      "raw_p_value": 1.9616490439870845e-16,
+      "zero": 0
+    },
+    "PoisonedRAG-W/C_R": {
+      "bootstrap_ci_95": [
+        -5.908676008094988,
+        -3.479459511573425
+      ],
+      "holm_adjusted_p_value": 0.9999999999999998,
+      "median": -4.547359720651947,
+      "n": 92,
+      "negative": 82,
+      "passed": false,
+      "positive": 10,
+      "positive_proportion": 0.10869565217391304,
+      "raw_p_value": 0.9999999999999998,
+      "zero": 0
+    }
+  },
+  "protocol_id": "RGRD-V0.1-oracle-mechanism-audit",
+  "provenance": {
+    "detector_code_commit": "10eab757e6387b4f8e69a477a9ee67b8681a780d",
+    "experiment_config_sha256": "f1d3c946febff370c530757928f09d343afd39e08d422406848dea02f60c20ef",
+    "model_revisions": {
+      "generator": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "reranker": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+      "retriever": "2bd46a25019aeea091fd42d1f0fd4801675cf699"
+    },
+    "pipeline_config_sha256": "98a6f260c9ecedc4f94e2a9a63f912ba49eaacb440778897366edd9c4af98cac"
+  },
+  "schema_version": 1
+}
