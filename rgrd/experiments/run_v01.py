@@ -27,6 +27,7 @@ from rgrd.pipeline.state import (
     StateStore,
 )
 from rgrd.provenance import sha256_file, utc_now
+from rgrd.publishing import publish_terminal_results
 
 
 _ALLOWED = [4, 5, 6, 7]
@@ -174,6 +175,34 @@ class V01Runner:
 
         self.store.mutate(mutate)
         self._log(f"FAILED: {message}")
+
+    def _publish_terminal(self) -> bool:
+        try:
+            result = publish_terminal_results(self.root, self.state_path)
+        except Exception as exc:
+            message = f"terminal result publication failed: {type(exc).__name__}: {exc}"
+
+            def failed(state: RunState) -> None:
+                state.publication = {
+                    "status": "failed",
+                    "error": message,
+                    "at": utc_now(),
+                }
+                state.errors.append(message)
+
+            self.store.mutate(failed)
+            self._log(message)
+            return False
+
+        def succeeded(state: RunState) -> None:
+            state.publication = dict(result)
+
+        self.store.mutate(succeeded)
+        self._log(
+            f"publication status={result['status']} branch={result.get('branch')} "
+            f"commit={result.get('commit')} destination={result.get('destination')}"
+        )
+        return result["status"] in {"published", "already_published"}
 
     def _run_cpu_command(self, label: str, command: list[str]) -> None:
         log = self.root / f"artifacts/logs/{label}.log"
@@ -541,7 +570,11 @@ class V01Runner:
                 f"terminal primary={primary.value} robustness={robustness.value} "
                 f"report={self.root / 'artifacts/v01/reports/V0_1_final_report.md'}"
             )
-            return 0 if primary == GateStatus.PASS and robustness == GateStatus.PASS else 2
+            science_passed = primary == GateStatus.PASS and robustness == GateStatus.PASS
+            publication_succeeded = self._publish_terminal()
+            if science_passed and publication_succeeded:
+                return 0
+            return 2 if not science_passed else 3
         except InterruptedError as exc:
             self._terminate_children()
             stop_message = str(exc)
@@ -552,10 +585,12 @@ class V01Runner:
 
             self.store.mutate(stopped)
             self._log("stopped by signal")
+            self._publish_terminal()
             return 130
         except Exception as exc:
             self._terminate_children()
             self._fail(str(exc))
+            self._publish_terminal()
             return 1
 
 

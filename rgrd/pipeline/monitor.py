@@ -56,6 +56,7 @@ def snapshot(state_path: Path, tail_lines: int = 30) -> dict[str, Any]:
         "state": state.model_dump(mode="json"),
         "process_alive": process_alive,
         "gpu": _gpu_snapshot(),
+        "publication": state.publication,
         "log_tail": _tail(Path(state.log_path), tail_lines) if state.log_path else [],
         "terminal": state.status in {"passed", "failed", "stopped"},
     }

@@ -137,3 +137,24 @@ Successful and gate-stopped runs both materialize:
 - `artifacts/reports/hard_benign_report.md`
 - `artifacts/reports/joint_gcg_boundary_report.md`
 - `artifacts/reports/V0_final_report.md`
+
+## Automatic publication of terminal evidence
+
+Every terminal run invokes the controlled publisher configured in
+`configs/publication.yaml`. It creates one immutable directory at
+`results/runs/<run_id>/` on the current GitHub branch and pushes a dedicated result
+commit. The bundle contains final Markdown reports, aggregate JSON statistics, a
+compact run-state summary, a failure log tail when applicable, and SHA-256 hashes.
+
+The publisher stages only its run-specific result directory from a fresh temporary
+clone. It refuses unpushed detector commits, unexpected GitHub remotes, unsafe paths,
+oversized evidence, or text matching credential patterns. Raw per-query events, full
+logs, models, indexes, attack artifacts, and credentials are never uploaded.
+
+Manual, idempotent backfill is available with:
+
+```bash
+python -m rgrd.publishing.github \
+  --root /mnt/data/jkl/RGRD_V0 \
+  --state /mnt/data/jkl/RGRD_V0/artifacts/run_state.json
+```

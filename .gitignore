@@ -28,6 +28,7 @@ artifacts/smoke/*
 artifacts/statistics/*
 artifacts/run_state.json
 artifacts/run_state*.json
+artifacts/publications/
 !artifacts/**/.gitkeep
 !artifacts/reports/*.md
 !artifacts/audit/*.md

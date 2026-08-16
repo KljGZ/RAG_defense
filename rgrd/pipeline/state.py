@@ -70,6 +70,7 @@ class RunState(StateModel):
     phases: dict[str, PhaseRecord] = Field(default_factory=dict)
     gates: dict[str, GateDecision] = Field(default_factory=dict)
     errors: list[str] = Field(default_factory=list)
+    publication: dict[str, Any] = Field(default_factory=dict)
 
 
 class StateStore:

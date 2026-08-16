@@ -18,6 +18,7 @@ import yaml
 
 from rgrd.pipeline.state import GateDecision, PhaseRecord, RunState, StateStore
 from rgrd.provenance import utc_now
+from rgrd.publishing import publish_terminal_results
 from rgrd.reporting import write_all, write_pipeline_report
 from rgrd.experiments.gpu_admission import (
     log_segment_has_cuda_oom,
@@ -197,6 +198,30 @@ class ExperimentRunner:
 
     def _save(self) -> None:
         self.store.save(self.state)
+
+    def _publish_terminal(self) -> bool:
+        try:
+            result = publish_terminal_results(self.root, self.state_path)
+        except Exception as exc:
+            message = f"terminal result publication failed: {type(exc).__name__}: {exc}"
+            self.state.publication = {
+                "status": "failed",
+                "error": message,
+                "at": utc_now(),
+            }
+            self.state.errors.append(message)
+            self._save()
+            print(f"[{utc_now()}] {message}", flush=True)
+            return False
+        self.state.publication = dict(result)
+        self._save()
+        print(
+            f"[{utc_now()}] publication status={result['status']} "
+            f"branch={result.get('branch')} commit={result.get('commit')} "
+            f"destination={result.get('destination')}",
+            flush=True,
+        )
+        return result["status"] in {"published", "already_published"}
 
     def _progress(self, **values: Any) -> None:
         if self.state.current_phase:
@@ -1511,7 +1536,7 @@ class ExperimentRunner:
             self.state.current_phase = None
             self._save()
             write_all(self.root, self.state.model_dump(mode="json"))
-            return 0
+            return 0 if self._publish_terminal() else 3
         except BaseException as exc:
             self.state.status = "failed"
             self.state.errors.append(f"{type(exc).__name__}: {exc}")
@@ -1523,6 +1548,7 @@ class ExperimentRunner:
             self.state.current_phase = None
             self._save()
             write_all(self.root, self.state.model_dump(mode="json"))
+            self._publish_terminal()
             return 2
 
 
